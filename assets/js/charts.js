@@ -425,26 +425,56 @@ document.addEventListener("DOMContentLoaded", function () {
         const totalEmployees = validEmployees.reduce((sum, u) => sum + u.employees, 0);
         document.getElementById("kpi-total-employees").innerText = totalEmployees.toLocaleString();
 
-        // Country Distribution Bar Chart
+        // Country Distribution — Density chart (% within filtered group)
         const countryCounts = {};
         unis.forEach(u => countryCounts[u.country_code] = (countryCounts[u.country_code] || 0) + 1);
-        const sortedCountries = Object.keys(countryCounts).sort();
+        const sortedCountries = Object.keys(countryCounts).sort((a, b) => countryCounts[b] - countryCounts[a]);
+        const totalUnis = unis.length || 1;
+        const countryPcts = sortedCountries.map(c => parseFloat(((countryCounts[c] / totalUnis) * 100).toFixed(1)));
 
         safeRenderChart("chart-muestra-paises", {
             type: 'bar',
             data: {
                 labels: sortedCountries.map(c => countryCodesMap[c] || c),
                 datasets: [{
-                    label: 'IES Participantes',
-                    data: sortedCountries.map(c => countryCounts[c]),
-                    backgroundColor: '#e42424'
+                    label: '% de IES',
+                    data: countryPcts,
+                    backgroundColor: sortedCountries.map((_, i) =>
+                        ['#e42424','#68b631','#4092df','#f5b14b','#8a3ffc','#009688','#ff5722','#795548'][i % 8]
+                    ),
+                    borderRadius: 4
                 }]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
-                scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const pct = context.raw;
+                                const abs = countryCounts[sortedCountries[context.dataIndex]];
+                                return `${pct}% del total filtrado (${abs} IES)`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 100,
+                        ticks: {
+                            callback: v => v + '%'
+                        },
+                        title: {
+                            display: true,
+                            text: '% dentro del grupo filtrado',
+                            font: { size: 11 }
+                        }
+                    },
+                    x: { grid: { display: false } }
+                }
             }
         });
 
