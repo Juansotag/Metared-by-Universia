@@ -301,9 +301,12 @@ document.addEventListener("DOMContentLoaded", function () {
         };
         const palette = stackColors[groupByKey] || ['#e42424', '#68b631', '#4092df', '#f5b14b'];
         
+        // Convert counts to percentages within each bin
+        const binTotals = bins.map(bin => bin.unis.length || 1);
+        
         groupsList.forEach((groupName, gIdx) => {
-            const data = bins.map(bin => {
-                return bin.unis.filter(u => {
+            const data = bins.map((bin, binIdx) => {
+                const count = bin.unis.filter(u => {
                     let uGroupVal = u[groupByKey];
                     if (groupByKey === 'country_code') {
                         uGroupVal = countryCodesMap[u.country_code] || u.country_code;
@@ -316,6 +319,8 @@ document.addEventListener("DOMContentLoaded", function () {
                     }
                     return (uGroupVal || 'No responde') === groupName;
                 }).length;
+                // Express as % of ALL IES in that bin
+                return binTotals[binIdx] > 0 ? parseFloat(((count / validUnis.length) * 100).toFixed(1)) : 0;
             });
             
             datasets.push({
@@ -337,7 +342,12 @@ document.addEventListener("DOMContentLoaded", function () {
                 maintainAspectRatio: false,
                 scales: {
                     x: { stacked: true, grid: { display: false } },
-                    y: { stacked: true, beginAtZero: true, ticks: { precision: 0 } }
+                    y: {
+                        stacked: true,
+                        beginAtZero: true,
+                        ticks: { callback: v => v + '%' },
+                        title: { display: true, text: '% del total filtrado', font: { size: 10 } }
+                    }
                 },
                 plugins: {
                     legend: {
@@ -349,7 +359,7 @@ document.addEventListener("DOMContentLoaded", function () {
                             label: function(context) {
                                 let label = context.dataset.label || '';
                                 if (label) label += ': ';
-                                label += context.raw + ' IES';
+                                label += context.raw + '%';
                                 return label;
                             }
                         }
@@ -799,25 +809,35 @@ document.addEventListener("DOMContentLoaded", function () {
                 return unis.reduce((sum, u) => sum + (u[q.id] || 0), 0) / (unis.length || 1);
             });
 
+            const radarLabels = subQuestions.map((q, i) => 'A' + (i+1));
+
             safeRenderChart("chart-ambiental-radar-global", {
                 type: 'radar',
                 data: {
-                    labels: subQuestions.map(q => q.full_text),
+                    labels: radarLabels,
                     datasets: [{
                         label: 'Promedio Filtro Activo',
                         data: dynamicGlobalRadarData,
                         borderColor: '#68b631',
-                        backgroundColor: 'rgba(104, 182, 49, 0.2)'
+                        backgroundColor: 'rgba(104, 182, 49, 0.2)',
+                        pointBackgroundColor: '#68b631'
                     }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    scales: { r: { min: 1, max: 5 } }
+                    scales: { r: { suggestedMin: 1, suggestedMax: 5, ticks: { stepSize: 1 } } },
+                    plugins: {
+                        legend: { position: 'bottom' },
+                        tooltip: {
+                            callbacks: {
+                                title: ctx => subQuestions[ctx[0].dataIndex].full_text.substring(0, 60) + '...'
+                            }
+                        }
+                    }
                 }
             });
 
-            // Radar chart (Selected countries comparison calculated dynamically)
             const radarDatasets = [];
             const colors = ['#e42424', '#68b631', '#4092df', '#f5b14b', '#8a3ffc', '#009688', '#ff5722', '#795548'];
             const activeCountries = Array.from(new Set(unis.map(u => u.country_code))).sort();
@@ -828,26 +848,24 @@ document.addEventListener("DOMContentLoaded", function () {
                     const sum = countryUnis.reduce((s, u) => s + (u[q.id] || 0), 0);
                     return countryUnis.length > 0 ? sum / countryUnis.length : 1;
                 });
-
                 radarDatasets.push({
                     label: countryCodesMap[c] || c,
                     data: data,
                     borderColor: colors[idx % colors.length],
                     backgroundColor: 'transparent',
-                    borderWidth: 2
+                    borderWidth: 2,
+                    pointBackgroundColor: colors[idx % colors.length]
                 });
             });
 
             safeRenderChart("chart-ambiental-radar-paises", {
                 type: 'radar',
-                data: {
-                    labels: subQuestions.map(q => q.full_text),
-                    datasets: radarDatasets
-                },
+                data: { labels: radarLabels, datasets: radarDatasets },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    scales: { r: { min: 1, max: 5 } }
+                    scales: { r: { suggestedMin: 1, suggestedMax: 5, ticks: { stepSize: 1 } } },
+                    plugins: { legend: { position: 'bottom' } }
                 }
             });
         }
@@ -917,21 +935,32 @@ document.addEventListener("DOMContentLoaded", function () {
                 return unis.reduce((sum, u) => sum + (u[q.id] || 0), 0) / (unis.length || 1);
             });
 
+            const radarLabels = subQuestions.map((q, i) => 'S' + (i+1));
+
             safeRenderChart("chart-social-radar-global", {
                 type: 'radar',
                 data: {
-                    labels: subQuestions.map(q => q.full_text),
+                    labels: radarLabels,
                     datasets: [{
                         label: 'Promedio Filtro Activo',
                         data: dynamicGlobalRadarData,
                         borderColor: '#4092df',
-                        backgroundColor: 'rgba(64, 146, 223, 0.2)'
+                        backgroundColor: 'rgba(64, 146, 223, 0.2)',
+                        pointBackgroundColor: '#4092df'
                     }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    scales: { r: { min: 1, max: 5 } }
+                    scales: { r: { suggestedMin: 1, suggestedMax: 5, ticks: { stepSize: 1 } } },
+                    plugins: {
+                        legend: { position: 'bottom' },
+                        tooltip: {
+                            callbacks: {
+                                title: ctx => subQuestions[ctx[0].dataIndex].full_text.substring(0, 60) + '...'
+                            }
+                        }
+                    }
                 }
             });
 
@@ -945,26 +974,24 @@ document.addEventListener("DOMContentLoaded", function () {
                     const sum = countryUnis.reduce((s, u) => s + (u[q.id] || 0), 0);
                     return countryUnis.length > 0 ? sum / countryUnis.length : 1;
                 });
-
                 radarDatasets.push({
                     label: countryCodesMap[c] || c,
                     data: data,
                     borderColor: colors[idx % colors.length],
                     backgroundColor: 'transparent',
-                    borderWidth: 2
+                    borderWidth: 2,
+                    pointBackgroundColor: colors[idx % colors.length]
                 });
             });
 
             safeRenderChart("chart-social-radar-paises", {
                 type: 'radar',
-                data: {
-                    labels: subQuestions.map(q => q.full_text),
-                    datasets: radarDatasets
-                },
+                data: { labels: radarLabels, datasets: radarDatasets },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    scales: { r: { min: 1, max: 5 } }
+                    scales: { r: { suggestedMin: 1, suggestedMax: 5, ticks: { stepSize: 1 } } },
+                    plugins: { legend: { position: 'bottom' } }
                 }
             });
         }
