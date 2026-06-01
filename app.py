@@ -67,6 +67,11 @@ def home():
 def send_index_files(filename):
     return send_from_directory('index_files', filename)
 
+@app.route('/favicon.ico')
+def favicon():
+    return send_from_directory(os.path.join(app.root_path, 'assets/images'),
+                               'favicon.png', mimetype='image/png')
+
 # API endpoints to fetch data (will be fully integrated in Paso 5)
 @app.route('/api/encuesta')
 def get_encuesta():
