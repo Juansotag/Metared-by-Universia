@@ -790,61 +790,67 @@ document.addEventListener("DOMContentLoaded", function () {
 
         // Radar chart (Global avg calculated dynamically from filtered active list)
         const subQuestions = surveyData.ambiental_sub_questions;
-        const dynamicGlobalRadarData = subQuestions.map(q => {
-            return unis.reduce((sum, u) => sum + u[q.id], 0) / (unis.length || 1);
-        });
-
-        safeRenderChart("chart-ambiental-radar-global", {
-            type: 'radar',
-            data: {
-                labels: subQuestions.map(q => q.full_text),
-                datasets: [{
-                    label: 'Promedio Filtro Activo',
-                    data: dynamicGlobalRadarData,
-                    borderColor: '#68b631',
-                    backgroundColor: 'rgba(104, 182, 49, 0.2)'
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: { r: { min: 1, max: 5 } }
-            }
-        });
-
-        // Radar chart (Selected countries comparison calculated dynamically)
-        const radarDatasets = [];
-        const colors = ['#e42424', '#68b631', '#4092df', '#f5b14b', '#8a3ffc', '#009688', '#ff5722', '#795548'];
-        const activeCountries = Array.from(new Set(unis.map(u => u.country_code))).sort();
-
-        activeCountries.slice(0, 5).forEach((c, idx) => {
-            const countryUnis = unis.filter(u => u.country_code === c);
-            const data = subQuestions.map(q => {
-                const sum = countryUnis.reduce((s, u) => s + u[q.id], 0);
-                return countryUnis.length > 0 ? sum / countryUnis.length : 1;
+        if (!subQuestions || subQuestions.length === 0) {
+            // Hide radar cards gracefully
+            const radarCards = document.querySelectorAll('#chart-ambiental-radar-global, #chart-ambiental-radar-paises');
+            radarCards.forEach(c => { if (c && c.parentElement && c.parentElement.parentElement) c.parentElement.parentElement.style.display = 'none'; });
+        } else {
+            const dynamicGlobalRadarData = subQuestions.map(q => {
+                return unis.reduce((sum, u) => sum + (u[q.id] || 0), 0) / (unis.length || 1);
             });
 
-            radarDatasets.push({
-                label: countryCodesMap[c] || c,
-                data: data,
-                borderColor: colors[idx % colors.length],
-                backgroundColor: 'transparent',
-                borderWidth: 2
+            safeRenderChart("chart-ambiental-radar-global", {
+                type: 'radar',
+                data: {
+                    labels: subQuestions.map(q => q.full_text),
+                    datasets: [{
+                        label: 'Promedio Filtro Activo',
+                        data: dynamicGlobalRadarData,
+                        borderColor: '#68b631',
+                        backgroundColor: 'rgba(104, 182, 49, 0.2)'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: { r: { min: 1, max: 5 } }
+                }
             });
-        });
 
-        safeRenderChart("chart-ambiental-radar-paises", {
-            type: 'radar',
-            data: {
-                labels: subQuestions.map(q => q.full_text),
-                datasets: radarDatasets
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: { r: { min: 1, max: 5 } }
-            }
-        });
+            // Radar chart (Selected countries comparison calculated dynamically)
+            const radarDatasets = [];
+            const colors = ['#e42424', '#68b631', '#4092df', '#f5b14b', '#8a3ffc', '#009688', '#ff5722', '#795548'];
+            const activeCountries = Array.from(new Set(unis.map(u => u.country_code))).sort();
+
+            activeCountries.slice(0, 5).forEach((c, idx) => {
+                const countryUnis = unis.filter(u => u.country_code === c);
+                const data = subQuestions.map(q => {
+                    const sum = countryUnis.reduce((s, u) => s + (u[q.id] || 0), 0);
+                    return countryUnis.length > 0 ? sum / countryUnis.length : 1;
+                });
+
+                radarDatasets.push({
+                    label: countryCodesMap[c] || c,
+                    data: data,
+                    borderColor: colors[idx % colors.length],
+                    backgroundColor: 'transparent',
+                    borderWidth: 2
+                });
+            });
+
+            safeRenderChart("chart-ambiental-radar-paises", {
+                type: 'radar',
+                data: {
+                    labels: subQuestions.map(q => q.full_text),
+                    datasets: radarDatasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: { r: { min: 1, max: 5 } }
+                }
+            });
+        }
     }
 
     // --- 5. DIMENSIÓN SOCIAL ---
@@ -903,61 +909,65 @@ document.addEventListener("DOMContentLoaded", function () {
 
         // Radar chart (Global avg calculated dynamically from filtered active list)
         const subQuestions = surveyData.social_sub_questions;
-        const dynamicGlobalRadarData = subQuestions.map(q => {
-            return unis.reduce((sum, u) => sum + u[q.id], 0) / (unis.length || 1);
-        });
-
-        safeRenderChart("chart-social-radar-global", {
-            type: 'radar',
-            data: {
-                labels: subQuestions.map(q => q.full_text),
-                datasets: [{
-                    label: 'Promedio Filtro Activo',
-                    data: dynamicGlobalRadarData,
-                    borderColor: '#4092df',
-                    backgroundColor: 'rgba(64, 146, 223, 0.2)'
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: { r: { min: 1, max: 5 } }
-            }
-        });
-
-        // Radar chart (Selected countries comparison calculated dynamically)
-        const radarDatasets = [];
-        const colors = ['#e42424', '#68b631', '#4092df', '#f5b14b', '#8a3ffc', '#009688', '#ff5722', '#795548'];
-        const activeCountries = Array.from(new Set(unis.map(u => u.country_code))).sort();
-
-        activeCountries.slice(0, 5).forEach((c, idx) => {
-            const countryUnis = unis.filter(u => u.country_code === c);
-            const data = subQuestions.map(q => {
-                const sum = countryUnis.reduce((s, u) => s + u[q.id], 0);
-                return countryUnis.length > 0 ? sum / countryUnis.length : 1;
+        if (!subQuestions || subQuestions.length === 0) {
+            const radarCards = document.querySelectorAll('#chart-social-radar-global, #chart-social-radar-paises');
+            radarCards.forEach(c => { if (c && c.parentElement && c.parentElement.parentElement) c.parentElement.parentElement.style.display = 'none'; });
+        } else {
+            const dynamicGlobalRadarData = subQuestions.map(q => {
+                return unis.reduce((sum, u) => sum + (u[q.id] || 0), 0) / (unis.length || 1);
             });
 
-            radarDatasets.push({
-                label: countryCodesMap[c] || c,
-                data: data,
-                borderColor: colors[idx % colors.length],
-                backgroundColor: 'transparent',
-                borderWidth: 2
+            safeRenderChart("chart-social-radar-global", {
+                type: 'radar',
+                data: {
+                    labels: subQuestions.map(q => q.full_text),
+                    datasets: [{
+                        label: 'Promedio Filtro Activo',
+                        data: dynamicGlobalRadarData,
+                        borderColor: '#4092df',
+                        backgroundColor: 'rgba(64, 146, 223, 0.2)'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: { r: { min: 1, max: 5 } }
+                }
             });
-        });
 
-        safeRenderChart("chart-social-radar-paises", {
-            type: 'radar',
-            data: {
-                labels: subQuestions.map(q => q.full_text),
-                datasets: radarDatasets
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: { r: { min: 1, max: 5 } }
-            }
-        });
+            const radarDatasets = [];
+            const colors = ['#e42424', '#68b631', '#4092df', '#f5b14b', '#8a3ffc', '#009688', '#ff5722', '#795548'];
+            const activeCountries = Array.from(new Set(unis.map(u => u.country_code))).sort();
+
+            activeCountries.slice(0, 5).forEach((c, idx) => {
+                const countryUnis = unis.filter(u => u.country_code === c);
+                const data = subQuestions.map(q => {
+                    const sum = countryUnis.reduce((s, u) => s + (u[q.id] || 0), 0);
+                    return countryUnis.length > 0 ? sum / countryUnis.length : 1;
+                });
+
+                radarDatasets.push({
+                    label: countryCodesMap[c] || c,
+                    data: data,
+                    borderColor: colors[idx % colors.length],
+                    backgroundColor: 'transparent',
+                    borderWidth: 2
+                });
+            });
+
+            safeRenderChart("chart-social-radar-paises", {
+                type: 'radar',
+                data: {
+                    labels: subQuestions.map(q => q.full_text),
+                    datasets: radarDatasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: { r: { min: 1, max: 5 } }
+                }
+            });
+        }
     }
 
     // --- 6. DIMENSIÓN GOBERNANZA ---
@@ -1054,9 +1064,9 @@ document.addEventListener("DOMContentLoaded", function () {
             card.innerHTML = `
                 <div class="question-text">${idx+1}. ${q.full_text}</div>
                 <div class="question-chart-row">
-                    <div class="question-donut-wrapper">
-                        <canvas id="${qCanvasId}"></canvas>
-                        <div style="position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); font-size:16px; font-weight:800; color:#f5b14b">
+                    <div class="question-donut-wrapper" style="position:relative; height:100px;">
+                        <canvas id="${qCanvasId}" style="height:100px; width:100px;"></canvas>
+                        <div style="position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); font-size:16px; font-weight:800; color:#f5b14b; pointer-events:none;">
                             ${(globDispone * 100).toFixed(0)}%
                         </div>
                     </div>

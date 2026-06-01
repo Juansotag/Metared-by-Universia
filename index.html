@@ -566,6 +566,30 @@
                     <h3 style="font-size: 16px; font-weight: 700; margin-bottom: 15px;">Ubicaciones Geográficas de IES con Buenas Prácticas</h3>
                     <div id="practices-map"></div>
 
+                    <!-- Leyenda del mapa (colapsable) -->
+                    <div id="map-legend-container" style="border: 1px solid var(--color-border); border-radius: 8px; overflow: hidden; margin-bottom: 24px;">
+                        <button id="map-legend-toggle" onclick="(function(){
+                            var body = document.getElementById('map-legend-body');
+                            var arrow = document.getElementById('map-legend-arrow');
+                            var open = body.style.display !== 'none';
+                            body.style.display = open ? 'none' : 'flex';
+                            arrow.style.transform = open ? 'rotate(0deg)' : 'rotate(180deg)';
+                        })()" style="width:100%; background:var(--color-bg-alt); border:none; padding:10px 16px; display:flex; align-items:center; justify-content:space-between; cursor:pointer; font-size:13px; font-weight:700; color:#555;">
+                            <span>Leyenda del mapa</span>
+                            <svg id="map-legend-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="transition:transform 0.2s ease; transform:rotate(0deg);"><polyline points="6 9 12 15 18 9"/></svg>
+                        </button>
+                        <div id="map-legend-body" style="display:none; padding:12px 16px; gap:20px; flex-wrap:wrap;">
+                            <div style="display:flex; align-items:center; gap:8px; font-size:13px;">
+                                <span style="width:14px; height:14px; border-radius:50%; background:#e42424; display:inline-block; border:2px solid #fff; box-shadow:0 0 0 1px #e42424;"></span>
+                                Práctica Destacada
+                            </div>
+                            <div style="display:flex; align-items:center; gap:8px; font-size:13px;">
+                                <span style="width:14px; height:14px; border-radius:50%; background:#4092df; display:inline-block; border:2px solid #fff; box-shadow:0 0 0 1px #4092df;"></span>
+                                Práctica General
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Listado en Grilla de Tarjetas -->
                     <div class="bbpp-grid" id="bbpp-grid-container">
                         <!-- Tarjetas renderizadas dinámicamente -->
@@ -627,8 +651,7 @@
         </div>
     </div>
 
-    <!-- Frontend Core Scripts -->
-    <script src="/assets/js/filters.js"></script>
-    <script src="/assets/js/charts.js"></script>
+    <script src="/assets/js/filters.js?v=20260601"></script>
+    <script src="/assets/js/charts.js?v=20260601"></script>
 </body>
 </html>
