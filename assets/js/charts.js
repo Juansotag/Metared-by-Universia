@@ -87,6 +87,9 @@ document.addEventListener("DOMContentLoaded", function () {
     ]).then(([survey, practices]) => {
         surveyData = survey;
         practicesData = practices;
+        // Expose globally for the AI Assistant
+        window.surveyData = survey;
+        window.practicesData = practices;
 
         // Hide loader
         document.getElementById("loading-overlay").style.opacity = 0;
