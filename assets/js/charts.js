@@ -251,11 +251,11 @@ document.addEventListener("DOMContentLoaded", function () {
 
         const vals = validUnis.map(u => u[key]).sort((a, b) => a - b);
         const p1  = quantile(vals, 0.01);
-        const p95 = quantile(vals, 0.95);
+        const p75 = quantile(vals, 0.75);
 
         // 17 equal-width bins between p1 and p95 + 1 outlier bin
         const numNormalBins = 17;
-        const binSize = (p95 - p1) / numNormalBins || 1;
+        const binSize = (p75 - p1) / numNormalBins || 1;
 
         const bins = [];
         for (let i = 0; i < numNormalBins; i++) {
@@ -264,11 +264,11 @@ document.addEventListener("DOMContentLoaded", function () {
             bins.push({ min: bMin, max: bMax, label: formatBinLabel(bMin, bMax, key), unis: [] });
         }
         // Outlier bin
-        bins.push({ min: p95, max: Infinity, label: '> ' + formatNumberShort(p95) + (key === 'energia' ? ' kWh' : key === 'carbono' ? ' t' : key === 'residuos' ? '%' : ' m³'), unis: [] });
+        bins.push({ min: p75, max: Infinity, label: '> ' + formatNumberShort(p75) + (key === 'energia' ? ' kWh' : key === 'carbono' ? ' t' : key === 'residuos' ? '%' : ' m³'), unis: [] });
 
         validUnis.forEach(u => {
             const val = u[key];
-            if (val > p95) {
+            if (val > p75) {
                 bins[bins.length - 1].unis.push(u);
             } else {
                 let assigned = false;
@@ -499,7 +499,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 scales: {
                     y: {
                         beginAtZero: true,
-                        max: 100,
+                        max: Math.ceil(Math.max(...countryPcts) * 1.2),
                         ticks: {
                             callback: v => v + '%'
                         },
@@ -894,7 +894,13 @@ document.addEventListener("DOMContentLoaded", function () {
                     plugins: { legend: { position: 'bottom' } }
                 }
             });
-        }
+            // Populate legend A1-A10 outside the chart
+            const legendAmbEl = document.getElementById('legend-ambiental-items');
+            if (legendAmbEl) {
+                legendAmbEl.innerHTML = subQuestions.map((q, i) =>
+                    `<div><strong>A${i+1}</strong> &mdash; ${q.full_text}</div>`
+                ).join('');
+            }
     }
 
     // --- 5. DIMENSIÓN SOCIAL ---
@@ -1020,6 +1026,14 @@ document.addEventListener("DOMContentLoaded", function () {
                     plugins: { legend: { position: 'bottom' } }
                 }
             });
+
+            // Populate legend S1-S18 outside the chart
+            const legendSocEl = document.getElementById('legend-social-items');
+            if (legendSocEl) {
+                legendSocEl.innerHTML = subQuestions.map((q, i) =>
+                    `<div><strong>S${i+1}</strong> &mdash; ${q.full_text}</div>`
+                ).join('');
+            }
         }
     }
 

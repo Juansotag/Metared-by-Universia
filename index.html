@@ -280,10 +280,10 @@
                                         </select>
                                     </div>
                                 </div>
-                                <div class="chart-container" style="min-height: 250px; height: 250px;"><canvas id="chart-histogram-energia"></canvas></div>
+                                <div class="chart-container" style="min-height: 380px; height: 380px;"><canvas id="chart-histogram-energia"></canvas></div>
                                 <div style="margin-top:12px;">
                                     <div style="font-size:11px; font-weight:600; color:#888; margin-bottom:6px;">Composición por tramo (100%)</div>
-                                    <div class="chart-container" style="min-height: 160px; height: 160px;"><canvas id="chart-histogram-energia-norm"></canvas></div>
+                                    <div class="chart-container" style="min-height: 200px; height: 200px;"><canvas id="chart-histogram-energia-norm"></canvas></div>
                                 </div>
                             </div>
                         </div>
@@ -331,10 +331,10 @@
                                         </select>
                                     </div>
                                 </div>
-                                <div class="chart-container" style="min-height: 250px; height: 250px;"><canvas id="chart-histogram-carbono"></canvas></div>
+                                <div class="chart-container" style="min-height: 380px; height: 380px;"><canvas id="chart-histogram-carbono"></canvas></div>
                                 <div style="margin-top:12px;">
                                     <div style="font-size:11px; font-weight:600; color:#888; margin-bottom:6px;">Composición por tramo (100%)</div>
-                                    <div class="chart-container" style="min-height: 160px; height: 160px;"><canvas id="chart-histogram-carbono-norm"></canvas></div>
+                                    <div class="chart-container" style="min-height: 200px; height: 200px;"><canvas id="chart-histogram-carbono-norm"></canvas></div>
                                 </div>
                             </div>
                         </div>
@@ -382,10 +382,10 @@
                                         </select>
                                     </div>
                                 </div>
-                                <div class="chart-container" style="min-height: 250px; height: 250px;"><canvas id="chart-histogram-residuos"></canvas></div>
+                                <div class="chart-container" style="min-height: 380px; height: 380px;"><canvas id="chart-histogram-residuos"></canvas></div>
                                 <div style="margin-top:12px;">
                                     <div style="font-size:11px; font-weight:600; color:#888; margin-bottom:6px;">Composición por tramo (100%)</div>
-                                    <div class="chart-container" style="min-height: 160px; height: 160px;"><canvas id="chart-histogram-residuos-norm"></canvas></div>
+                                    <div class="chart-container" style="min-height: 200px; height: 200px;"><canvas id="chart-histogram-residuos-norm"></canvas></div>
                                 </div>
                             </div>
                         </div>
@@ -433,10 +433,10 @@
                                         </select>
                                     </div>
                                 </div>
-                                <div class="chart-container" style="min-height: 250px; height: 250px;"><canvas id="chart-histogram-agua"></canvas></div>
+                                <div class="chart-container" style="min-height: 380px; height: 380px;"><canvas id="chart-histogram-agua"></canvas></div>
                                 <div style="margin-top:12px;">
                                     <div style="font-size:11px; font-weight:600; color:#888; margin-bottom:6px;">Composición por tramo (100%)</div>
-                                    <div class="chart-container" style="min-height: 160px; height: 160px;"><canvas id="chart-histogram-agua-norm"></canvas></div>
+                                    <div class="chart-container" style="min-height: 200px; height: 200px;"><canvas id="chart-histogram-agua-norm"></canvas></div>
                                 </div>
                             </div>
                         </div>
@@ -472,7 +472,11 @@
                             <div class="chart-container"><canvas id="chart-ambiental-radar-paises"></canvas></div>
                         </div>
                     </div>
-                </section>
+                    <!-- Leyenda Ambiental fuera del gráfico -->
+                    <div id="legend-ambiental" style="background:var(--color-bg-alt); border-radius:8px; padding:14px 18px; margin-top:8px; margin-bottom:20px;">
+                        <div style="font-size:11px; font-weight:700; color:#555; margin-bottom:10px; text-transform:uppercase; letter-spacing:0.05em;">Leyenda de subindicadores ambientales</div>
+                        <div id="legend-ambiental-items" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(260px,1fr)); gap:4px 20px; font-size:11px; color:#444; line-height:1.5;"></div>
+                    </div>
 
                 <!-- TAB 4: DIMENSIÓN SOCIAL -->
                 <section id="section-social" class="dashboard-section">
@@ -502,6 +506,11 @@
                             <div class="chart-header"><h3 class="chart-title">Comparativa de Países (Radar Superpuesto)</h3></div>
                             <div class="chart-container"><canvas id="chart-social-radar-paises"></canvas></div>
                         </div>
+                    </div>
+                    <!-- Leyenda Social fuera del gráfico -->
+                    <div id="legend-social" style="background:var(--color-bg-alt); border-radius:8px; padding:14px 18px; margin-top:8px; margin-bottom:20px;">
+                        <div style="font-size:11px; font-weight:700; color:#555; margin-bottom:10px; text-transform:uppercase; letter-spacing:0.05em;">Leyenda de subindicadores sociales</div>
+                        <div id="legend-social-items" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(260px,1fr)); gap:4px 20px; font-size:11px; color:#444; line-height:1.5;"></div>
                     </div>
                 </section>
 
@@ -667,7 +676,7 @@
         </div>
     </div>
 
-    <script src="/assets/js/filters.js?v=20260602c"></script>
-    <script src="/assets/js/charts.js?v=20260602c"></script>
+    <script src="/assets/js/filters.js?v=20260602d"></script>
+    <script src="/assets/js/charts.js?v=20260602d"></script>
 </body>
 </html>
