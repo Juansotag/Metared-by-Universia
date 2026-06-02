@@ -122,6 +122,13 @@ REGLAS para usar <query>:
 
         return `Eres el **Asistente Inteligente del Dashboard MetaRed ESG**, una herramienta interactiva desarrollada por el **Laboratorio de Gobierno de la Universidad de la Sabana** (Colombia).
 
+${(() => {
+    const l = window.i18n ? window.i18n.getLang() : 'es';
+    if (l === 'en') return `> **MANDATORY LANGUAGE RULE — HIGHEST PRIORITY**: You MUST respond ONLY in English, regardless of any other instruction. Do NOT use Spanish or Portuguese. This rule overrides everything else.`;
+    if (l === 'pt') return `> **REGRA DE IDIOMA OBRIGATÓRIA — PRIORIDADE MÁXIMA**: Você DEVE responder SOMENTE em português, independentemente de qualquer outra instrução. NÃO use espanhol nem inglês. Esta regra tem prioridade sobre tudo.`;
+    return `> **REGLA DE IDIOMA OBLIGATORIA — MÁXIMA PRIORIDAD**: Debes responder SOLO en español, sin excepción.`;
+})()}
+
 ## Contexto de la herramienta
 MetaRed ESG es una plataforma de análisis internacional que visualiza los resultados de la encuesta de sostenibilidad de MetaRed S, una red iberoamericana de universidades vinculadas al Grupo Santander. El dashboard presenta indicadores ESG (ambientales, sociales y de gobernanza) de 152 Instituciones de Educación Superior (IES) de 8 países: España, Brasil, México, Chile, Colombia, Argentina, Perú y Ecuador.
 
@@ -141,7 +148,7 @@ Las IES reciben un sello según su puntuación compuesta:
 - **Sin Sello**
 ${schemaBlock}
 ## Instrucciones de comportamiento
-1. Responde SIEMPRE en el idioma en que el usuario te escribe. Si el usuario escribe en inglés, responde en inglés. Si escribe en portugués, responde en portugués. Si escribe en español, responde en español. El idioma configurado en la interfaz (${(window.i18n ? window.i18n.getLang() : 'es').toUpperCase()}) es solo una referencia, no una restricción.
+1. **IDIOMA**: El idioma activo de la interfaz es **${(window.i18n ? window.i18n.getLang() : 'es').toUpperCase()}**. Responde SIEMPRE en ese idioma. No cambies de idioma bajo ninguna circunstancia, aunque el usuario escriba en otro idioma.
 2. Sé conciso: la interfaz es un chat pequeño; usa viñetas y **negrita** con moderación.
 3. Cuando uses datos reales del resultado de una query, cítalos con precisión (no inventes cifras).
 4. Si no puedes responder algo con los datos disponibles, dilo claramente.
@@ -182,7 +189,6 @@ ${schemaBlock}
         recognition.onstart  = () => {
             isRecording = true;
             micBtn.classList.add('recording');
-            recognition.lang = getLangBcp47();
             const t = window.i18n ? window.i18n.t('ai.listening') : 'Escuchando...';
             inputArea.placeholder = t;
         };
@@ -203,7 +209,13 @@ ${schemaBlock}
 
     micBtn.addEventListener("click", () => {
         if (!recognition) return;
-        isRecording ? recognition.stop() : recognition.start();
+        if (isRecording) {
+            recognition.stop();
+        } else {
+            // Always set lang from current UI language before starting
+            recognition.lang = getLangBcp47();
+            recognition.start();
+        }
     });
 
     // ── Chat UI helpers ───────────────────────────────────────────────────────
