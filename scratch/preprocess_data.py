@@ -66,11 +66,11 @@ df_enc['Estudiantes Virtuales'] = df_enc['Nº de estudiantes matriculados (equiv
 df_enc['Estudiantes Híbridos'] = df_enc['Nº de estudiantes matriculados (equivalentes a tiempo completo) en el último curso académico perteneciente a titulaciones híbridas'].fillna(0)
 df_enc['Estudiantes Totales'] = df_enc['Estudiantes Presenciales'] + df_enc['Estudiantes Virtuales'] + df_enc['Estudiantes Híbridos']
 
-# Filter out invalid student totals (<= 50) for average demographic calculations
-df_enc_valid_students = df_enc[df_enc['Estudiantes Totales'] > 50]
+# Error 2: Include all IES with valid student counts (> 0, not > 50)
+df_enc_valid_students = df_enc[df_enc['Estudiantes Totales'] > 0]
 
-students_global_total = int(df_enc_valid_students['Estudiantes Totales'].sum())
-employees_global_total = int(df_enc['Nº de empleados promedio en el año 2024 (profesorado, staff, etc.)'].fillna(0).sum())
+students_global_total = round(df_enc_valid_students['Estudiantes Totales'].sum())
+employees_global_total = round(df_enc['Nº de empleados promedio en el año 2024 (profesorado, staff, etc.)'].fillna(0).sum())
 
 # Student statistics per country
 students_by_country = {}
@@ -95,20 +95,8 @@ basic_indicators = {
 }
 
 def get_clean_indicator_df(df, key, col):
-    if key == 'residuos':
-        return df[(df[col] >= 0) & (df[col] <= 100)]
-    elif key == 'energia':
-        return df[df[col] > 1000]
-    elif key == 'carbono':
-        return df[df[col] > 10]
-    elif key == 'agua':
-        return df[df[col] > 100]
-    elif key == 'areas_verdes':
-        return df[df[col] > 0]
-    elif key == 'presupuesto':
-        return df[df[col] > 100]
-    else:
-        return df[df[col] > 0]
+    # Error 4: All indicators count samples with value > 0
+    return df[df[col] > 0]
 
 def clean_ind_val(val, key):
     if pd.isna(val):
@@ -117,15 +105,8 @@ def clean_ind_val(val, key):
         val = float(val)
     except (ValueError, TypeError):
         return None
-    if key == 'energia' and val <= 1000:
-        return None
-    if key == 'carbono' and val <= 10:
-        return None
-    if key == 'residuos' and (val < 0 or val > 100):
-        return None
-    if key == 'agua' and val <= 100:
-        return None
-    if key == 'presupuesto' and val <= 100:
+    # Error 3: Include small valid values. Only exclude zero (means not reported).
+    if val <= 0:
         return None
     return val
 
@@ -272,10 +253,10 @@ for idx, row in df_enc.iterrows():
         lat, lon = country_defaults.get(cc, default_centroids.get(cc, (0.0, 0.0)))
         
     students_val = row['Estudiantes Totales']
-    students_cleaned = int(students_val) if (pd.notna(students_val) and students_val > 50) else None
+    students_cleaned = round(students_val) if (pd.notna(students_val) and students_val > 0) else None
     
     employees_val = row['Nº de empleados promedio en el año 2024 (profesorado, staff, etc.)']
-    employees_cleaned = int(employees_val) if (pd.notna(employees_val) and employees_val > 0) else None
+    employees_cleaned = round(employees_val) if (pd.notna(employees_val) and employees_val > 0) else None
     
     ownership_cleaned = clean_str(row['Titularidad de la Universidad'], 'No responde')
     character_cleaned = clean_str(row['Carácter de la Universidad'], 'No responde')

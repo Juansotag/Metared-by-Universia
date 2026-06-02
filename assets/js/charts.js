@@ -28,17 +28,56 @@ document.addEventListener("DOMContentLoaded", function () {
         }
     };
 
-    // Initialize Leaflet Map
+    // Initialize Leaflet Maps
     function initMap() {
-        if (window.bbppMap) return;
-        
-        // Center around Latin America/Spain
-        window.bbppMap = L.map('practices-map').setView([-10, -60], 3);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '&copy; OpenStreetMap contributors'
-        }).addTo(window.bbppMap);
-        
-        window.bbppMarkersGroup = L.layerGroup().addTo(window.bbppMap);
+        // Initialize Survey map (home section — all IES)
+        if (!window.surveyMap) {
+            window.surveyMap = L.map('survey-map').setView([-10, -60], 3);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; OpenStreetMap contributors'
+            }).addTo(window.surveyMap);
+            window.surveyMarkersGroup = L.layerGroup().addTo(window.surveyMap);
+        }
+
+        // Initialize BBPP map (practices section)
+        if (!window.bbppMap) {
+            window.bbppMap = L.map('practices-map').setView([-10, -60], 3);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; OpenStreetMap contributors'
+            }).addTo(window.bbppMap);
+            window.bbppMarkersGroup = L.layerGroup().addTo(window.bbppMap);
+        }
+    }
+
+    // Error 7: Mapa con todas las IES de la encuesta
+    function renderSurveyMap(unis) {
+        if (!window.surveyMap || !window.surveyMarkersGroup) return;
+        window.surveyMarkersGroup.clearLayers();
+
+        const countryColors = {
+            'ES':'#e42424','BR':'#68b631','MX':'#4092df','CL':'#f5b14b',
+            'CO':'#8a3ffc','AR':'#009688','PE':'#ff5722','EC':'#795548'
+        };
+
+        unis.forEach(u => {
+            if (u.lat && u.lon) {
+                const color = countryColors[u.country_code] || '#555';
+                const marker = L.circleMarker([u.lat, u.lon], {
+                    radius: 7,
+                    fillColor: color,
+                    color: '#fff',
+                    weight: 2,
+                    opacity: 1,
+                    fillOpacity: 0.85
+                });
+                marker.bindPopup(`
+                    <div style="font-size:13px; font-weight:700; margin-bottom:4px;">${u.name || u.ies || 'IES'}</div>
+                    <div style="font-size:11px; color:#555;">${countryCodesMap[u.country_code] || u.country_code}</div>
+                    ${u.seal && u.seal !== 'Sin Sello' ? `<div style="font-size:11px; margin-top:4px; font-weight:600; color:#f5b14b;">Sello: ${u.seal}</div>` : ''}
+                `);
+                window.surveyMarkersGroup.addLayer(marker);
+            }
+        });
     }
 
     // Fetch raw datasets on page load
@@ -130,25 +169,28 @@ document.addEventListener("DOMContentLoaded", function () {
         // 1. UPDATE HOME GAUGES
         updateHomeGauges(filteredUnis);
 
-        // 2. UPDATE MUESTRA PAGE
+        // 2. UPDATE HOME MAP (Error 7: Mapa de todas las IES al inicio)
+        renderSurveyMap(filteredUnis);
+
+        // 3. UPDATE MUESTRA PAGE
         updateMuestraPage(filteredUnis);
 
-        // 3. UPDATE INDICADORES BÁSICOS PAGE
+        // 4. UPDATE INDICADORES BÁSICOS PAGE
         updateIndicadoresPage(filteredUnis);
 
-        // 4. UPDATE DIMENSIÓN AMBIENTAL
+        // 5. UPDATE DIMENSIÓN AMBIENTAL
         updateAmbientalPage(filteredUnis);
 
-        // 5. UPDATE DIMENSIÓN SOCIAL
+        // 6. UPDATE DIMENSIÓN SOCIAL
         updateSocialPage(filteredUnis);
 
-        // 6. UPDATE DIMENSIÓN GOBERNANZA
+        // 7. UPDATE DIMENSIÓN GOBERNANZA
         updateGobernanzaPage(filteredUnis);
 
-        // 7. UPDATE SELLOS
+        // 8. UPDATE SELLOS
         updateSellosPage(filteredUnis);
 
-        // 8. UPDATE BUENAS PRÁCTICAS
+        // 9. UPDATE BUENAS PRÁCTICAS
         renderBBPPList();
     };
 
@@ -461,20 +503,20 @@ document.addEventListener("DOMContentLoaded", function () {
         const totalEmployees = validEmployees.reduce((sum, u) => sum + u.employees, 0);
         document.getElementById("kpi-total-employees").innerText = totalEmployees.toLocaleString();
 
-        // Country Distribution — Density chart (% within filtered group)
+        // Country Distribution — Absolute number of IES (Error 1: eje Y = nº IES, no %)
         const countryCounts = {};
         unis.forEach(u => countryCounts[u.country_code] = (countryCounts[u.country_code] || 0) + 1);
         const sortedCountries = Object.keys(countryCounts).sort((a, b) => countryCounts[b] - countryCounts[a]);
+        const countryAbsCounts = sortedCountries.map(c => countryCounts[c]);
         const totalUnis = unis.length || 1;
-        const countryPcts = sortedCountries.map(c => parseFloat(((countryCounts[c] / totalUnis) * 100).toFixed(1)));
 
         safeRenderChart("chart-muestra-paises", {
             type: 'bar',
             data: {
                 labels: sortedCountries.map(c => countryCodesMap[c] || c),
                 datasets: [{
-                    label: '% de IES',
-                    data: countryPcts,
+                    label: 'Nº de IES',
+                    data: countryAbsCounts,
                     backgroundColor: sortedCountries.map((_, i) =>
                         ['#e42424','#68b631','#4092df','#f5b14b','#8a3ffc','#009688','#ff5722','#795548'][i % 8]
                     ),
@@ -489,9 +531,9 @@ document.addEventListener("DOMContentLoaded", function () {
                     tooltip: {
                         callbacks: {
                             label: function(context) {
-                                const pct = context.raw;
-                                const abs = countryCounts[sortedCountries[context.dataIndex]];
-                                return `${pct}% del total filtrado (${abs} IES)`;
+                                const abs = context.raw;
+                                const pct = ((abs / totalUnis) * 100).toFixed(1);
+                                return `${abs} IES (${pct}% del total filtrado)`;
                             }
                         }
                     }
@@ -499,13 +541,13 @@ document.addEventListener("DOMContentLoaded", function () {
                 scales: {
                     y: {
                         beginAtZero: true,
-                        max: Math.ceil(Math.max(...countryPcts) * 1.2),
                         ticks: {
-                            callback: v => v + '%'
+                            stepSize: 1,
+                            callback: v => Number.isInteger(v) ? v : ''
                         },
                         title: {
                             display: true,
-                            text: '% dentro del grupo filtrado',
+                            text: 'Número de IES',
                             font: { size: 11 }
                         }
                     },
@@ -806,22 +848,50 @@ document.addEventListener("DOMContentLoaded", function () {
             countryScores[c] = countryUnis.reduce((sum, u) => sum + u.score_ambiental, 0) / (countryUnis.length || 1);
         });
 
+        // Error 5: Barras con colores por país y etiquetas de datos
+        const countryColorsAmb = ['#e42424','#68b631','#4092df','#f5b14b','#8a3ffc','#009688','#ff5722','#795548'];
         safeRenderChart("chart-ambiental-paises", {
             type: 'bar',
             data: {
                 labels: countriesList.map(c => countryCodesMap[c] || c),
                 datasets: [{
                     label: 'Puntuación Media',
-                    data: countriesList.map(c => countryScores[c]),
-                    backgroundColor: '#68b631'
+                    data: countriesList.map(c => parseFloat(countryScores[c].toFixed(2))),
+                    backgroundColor: countriesList.map((_, i) => countryColorsAmb[i % countryColorsAmb.length]),
+                    borderRadius: 4
                 }]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
-                scales: { y: { min: 1, max: 5 } }
-            }
+                plugins: {
+                    legend: { display: false },
+                    tooltip: { callbacks: { label: ctx => `Puntuación: ${ctx.raw.toFixed(2)}` } }
+                },
+                scales: {
+                    y: {
+                        min: 1, max: 5,
+                        title: { display: true, text: 'Puntuación media (1–5)', font: { size: 10 } }
+                    },
+                    x: { grid: { display: false } }
+                }
+            },
+            plugins: [{
+                id: 'ambientalBarLabels',
+                afterDatasetsDraw(chart) {
+                    const { ctx, data } = chart;
+                    chart.getDatasetMeta(0).data.forEach((bar, i) => {
+                        const val = data.datasets[0].data[i];
+                        ctx.save();
+                        ctx.fillStyle = '#333';
+                        ctx.font = 'bold 11px sans-serif';
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'bottom';
+                        ctx.fillText(val.toFixed(2), bar.x, bar.y - 2);
+                        ctx.restore();
+                    });
+                }
+            }]
         });
 
         // Radar chart (Global avg calculated dynamically from filtered active list)
@@ -940,22 +1010,50 @@ document.addEventListener("DOMContentLoaded", function () {
             countryScores[c] = countryUnis.reduce((sum, u) => sum + u.score_social, 0) / (countryUnis.length || 1);
         });
 
+        // Error 5: Barras con colores por país y etiquetas de datos
+        const countryColorsSoc = ['#e42424','#68b631','#4092df','#f5b14b','#8a3ffc','#009688','#ff5722','#795548'];
         safeRenderChart("chart-social-paises", {
             type: 'bar',
             data: {
                 labels: countriesList.map(c => countryCodesMap[c] || c),
                 datasets: [{
                     label: 'Puntuación Media',
-                    data: countriesList.map(c => countryScores[c]),
-                    backgroundColor: '#4092df'
+                    data: countriesList.map(c => parseFloat(countryScores[c].toFixed(2))),
+                    backgroundColor: countriesList.map((_, i) => countryColorsSoc[i % countryColorsSoc.length]),
+                    borderRadius: 4
                 }]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
-                scales: { y: { min: 1, max: 5 } }
-            }
+                plugins: {
+                    legend: { display: false },
+                    tooltip: { callbacks: { label: ctx => `Puntuación: ${ctx.raw.toFixed(2)}` } }
+                },
+                scales: {
+                    y: {
+                        min: 1, max: 5,
+                        title: { display: true, text: 'Puntuación media (1–5)', font: { size: 10 } }
+                    },
+                    x: { grid: { display: false } }
+                }
+            },
+            plugins: [{
+                id: 'socialBarLabels',
+                afterDatasetsDraw(chart) {
+                    const { ctx, data } = chart;
+                    chart.getDatasetMeta(0).data.forEach((bar, i) => {
+                        const val = data.datasets[0].data[i];
+                        ctx.save();
+                        ctx.fillStyle = '#333';
+                        ctx.font = 'bold 11px sans-serif';
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'bottom';
+                        ctx.fillText(val.toFixed(2), bar.x, bar.y - 2);
+                        ctx.restore();
+                    });
+                }
+            }]
         });
 
         // Radar chart (Global avg calculated dynamically from filtered active list)
@@ -1075,22 +1173,52 @@ document.addEventListener("DOMContentLoaded", function () {
             countryScores[c] = countryUnis.reduce((sum, u) => sum + u.score_gobernanza, 0) / (countryUnis.length || 1);
         });
 
+        // Error 5: Barras con colores por país y etiquetas de datos
+        const countryColorsGob = ['#e42424','#68b631','#4092df','#f5b14b','#8a3ffc','#009688','#ff5722','#795548'];
+        const gobData = countriesList.map(c => parseFloat((countryScores[c] * 100).toFixed(1)));
         safeRenderChart("chart-gobernanza-paises", {
             type: 'bar',
             data: {
                 labels: countriesList.map(c => countryCodesMap[c] || c),
                 datasets: [{
                     label: 'Porcentaje Dispuesto',
-                    data: countriesList.map(c => countryScores[c] * 100),
-                    backgroundColor: '#f5b14b'
+                    data: gobData,
+                    backgroundColor: countriesList.map((_, i) => countryColorsGob[i % countryColorsGob.length]),
+                    borderRadius: 4
                 }]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
-                scales: { y: { min: 0, max: 100 } }
-            }
+                plugins: {
+                    legend: { display: false },
+                    tooltip: { callbacks: { label: ctx => `${ctx.raw.toFixed(1)}% de actividades dispuestas` } }
+                },
+                scales: {
+                    y: {
+                        min: 0, max: 100,
+                        ticks: { callback: v => v + '%' },
+                        title: { display: true, text: '% de actividades dispuestas', font: { size: 10 } }
+                    },
+                    x: { grid: { display: false } }
+                }
+            },
+            plugins: [{
+                id: 'gobernanzaBarLabels',
+                afterDatasetsDraw(chart) {
+                    const { ctx, data } = chart;
+                    chart.getDatasetMeta(0).data.forEach((bar, i) => {
+                        const val = data.datasets[0].data[i];
+                        ctx.save();
+                        ctx.fillStyle = '#333';
+                        ctx.font = 'bold 11px sans-serif';
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'bottom';
+                        ctx.fillText(val.toFixed(1) + '%', bar.x, bar.y - 2);
+                        ctx.restore();
+                    });
+                }
+            }]
         });
 
         // Render 22 binary questions detailed cards dynamically using active filtered unis
@@ -1198,33 +1326,54 @@ document.addEventListener("DOMContentLoaded", function () {
             }
         });
 
-        // Distribution per country
+        // Error 6: Distribución por país al 100% (barras apiladas normalizadas)
         const countriesList = Object.keys(surveyData.by_country).sort();
-        const compromises = [];
-        const leaderships = [];
-        const transformations = [];
+        const sealTypes = ['Compromiso', 'Liderazgo', 'Transformación', 'Sin Sello'];
+        const sealColors = { 'Compromiso': '#3c5ecc', 'Liderazgo': '#f5b14b', 'Transformación': '#68b631', 'Sin Sello': '#aaa' };
 
-        countriesList.forEach(c => {
-            const countryUnis = unis.filter(u => u.country_code === c);
-            compromises.push(countryUnis.filter(u => u.seal === 'Compromiso').length);
-            leaderships.push(countryUnis.filter(u => u.seal === 'Liderazgo').length);
-            transformations.push(countryUnis.filter(u => u.seal === 'Transformación').length);
-        });
+        const sealDatasets = sealTypes.map(seal => ({
+            label: seal,
+            data: countriesList.map(c => {
+                const countryUnis = unis.filter(u => u.country_code === c);
+                const total = countryUnis.length || 1;
+                const count = countryUnis.filter(u => u.seal === seal).length;
+                return parseFloat(((count / total) * 100).toFixed(1));
+            }),
+            backgroundColor: sealColors[seal]
+        }));
 
         safeRenderChart("chart-sellos-paises", {
             type: 'bar',
             data: {
                 labels: countriesList.map(c => countryCodesMap[c] || c),
-                datasets: [
-                    { label: 'Compromiso', data: compromises, backgroundColor: '#3c5ecc' },
-                    { label: 'Liderazgo', data: leaderships, backgroundColor: '#f5b14b' },
-                    { label: 'Transformación', data: transformations, backgroundColor: '#68b631' }
-                ]
+                datasets: sealDatasets
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                scales: { x: { stacked: true }, y: { stacked: true } }
+                plugins: {
+                    legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } },
+                    tooltip: {
+                        callbacks: {
+                            label: ctx => {
+                                const c = countriesList[ctx.dataIndex];
+                                const countryUnis = unis.filter(u => u.country_code === c);
+                                const count = countryUnis.filter(u => u.seal === ctx.dataset.label).length;
+                                return `${ctx.dataset.label}: ${ctx.raw}% (${count} IES)`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: { stacked: true, grid: { display: false } },
+                    y: {
+                        stacked: true,
+                        min: 0,
+                        max: 100,
+                        ticks: { callback: v => v + '%' },
+                        title: { display: true, text: '% de IES por sello', font: { size: 10 } }
+                    }
+                }
             }
         });
     }

@@ -1,0 +1,7 @@
+- El eje Y de la gráfica de "Distribución de IES por país" debería ser el numero de IES, no el porcentaje.
+- Las tarjetas de Estudiantes representados y colaboradores están incorrectas, viendo el documento excel deberían ser 3.245.290 estudiantes y 432.271 de personal. 
+- Revisa si hay valores pequeños que no se incluyen en los cálculos
+- Deberían haber 121 muestras en Consumo total de energía cuando solo hay 117, 96 muestras de Huella de carbono y hay 92, 102 de residuos reciclados y hay 126 y hay 111 muestras de consumo de agua cuando deberían ser 113
+- En las gráficas de barras de las dimensiones ambientales, sociales y de gobernanza es necesario colorear las barras de gris al color de la dimensión, también poner etiquetas.
+- En Sello de Sostenibilidad concedido por país, pon una gráfica de barras con eje y=100%, para ver la distribución de IES por %. 
+- Cambia el mapa de buenas prácticas y ponlo al inicio, pon todas las IES que respondieron la encuesta. 
