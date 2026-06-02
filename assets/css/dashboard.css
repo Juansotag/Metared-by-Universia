@@ -10,6 +10,7 @@
     position: sticky;
     top: var(--header-height);
     z-index: 999;
+    padding: 0 24px;
 }
 
 .dashboard-tab {
@@ -68,26 +69,8 @@
     box-shadow: 0 4px 6px rgba(0,0,0,0.02);
 }
 
-.sticky-header-container {
-    position: sticky;
-    top: 0;
-    z-index: 1000;
-    background-color: #fff;
-    border-bottom: 1px solid var(--color-border);
-    box-shadow: 0 4px 10px rgba(0,0,0,0.05);
-    width: 100%;
-}
+/* sticky-header-container defined in main.css */
 
-.sticky-header-container .filters-bar {
-    border: none;
-    border-radius: 0;
-    margin-bottom: 0;
-    box-shadow: none;
-    padding: 12px 20px;
-    max-width: var(--max-width);
-    margin-left: auto;
-    margin-right: auto;
-}
 
 /* Indicadores: tabla arriba, histograma abajo siempre */
 .indicator-two-columns {
@@ -617,17 +600,23 @@
 #filters-collapsible-body {
     display: flex;
     flex-wrap: wrap;
-    gap: 20px;
+    gap: 16px;
     align-items: center;
     width: 100%;
     overflow: hidden;
-    max-height: 200px;
-    transition: max-height 0.35s ease, opacity 0.3s ease, padding 0.3s ease;
+    /* Use grid-template-rows for pixel-perfect collapse with no residual space */
+    max-height: 120px;
+    padding-top: 10px;
+    padding-bottom: 10px;
+    transition: max-height 0.35s ease, opacity 0.3s ease,
+                padding-top 0.35s ease, padding-bottom 0.35s ease;
     opacity: 1;
 }
 
 #filters-collapsible-body.collapsed {
     max-height: 0;
+    padding-top: 0;
+    padding-bottom: 0;
     opacity: 0;
     pointer-events: none;
 }
