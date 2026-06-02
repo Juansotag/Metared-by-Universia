@@ -1,4 +1,4 @@
-from flask import Flask, render_template, send_from_directory, jsonify, request
+from flask import Flask, render_template, send_from_directory, jsonify, request, make_response
 import os
 import pandas as pd
 import json
@@ -66,6 +66,23 @@ def pre_process_data():
         except Exception as e:
             print(f"Error: {e}")
 
+# ─ i18n: Translation dictionary directory ────────────────────────────
+I18N_LANGS = ['es', 'en', 'pt']
+I18N_DIR   = os.path.join('assets', 'i18n')
+
+def load_i18n_all():
+    """Read all translation JSON files fresh from disk (never cached)."""
+    result = {}
+    for lang in I18N_LANGS:
+        path = os.path.join(I18N_DIR, f'{lang}.json')
+        try:
+            with open(path, 'r', encoding='utf-8') as f:
+                result[lang] = json.load(f)
+        except Exception as e:
+            print(f"[i18n] Warning: could not load {lang}.json: {e}")
+            result[lang] = {}
+    return result
+
 # Run on startup
 pre_process_data()
 load_dataframes()
@@ -74,7 +91,20 @@ load_dataframes()
 def home():
     if not os.path.exists('index.html'):
         return "<h1>Servidor MetaRed S Inicializado</h1>"
-    return render_template('index.html')
+    lang = request.cookies.get('metared_lang', 'es')
+    if lang not in I18N_LANGS:
+        lang = 'es'
+    i18n_all = load_i18n_all()   # always fresh
+    return render_template('index.html', i18n_all=i18n_all, lang=lang)
+
+@app.route('/set-lang/<lang_code>')
+def set_lang(lang_code):
+    """Set language cookie and redirect to home."""
+    if lang_code not in I18N_LANGS:
+        lang_code = 'es'
+    resp = make_response('', 204)
+    resp.set_cookie('metared_lang', lang_code, max_age=60*60*24*365)
+    return resp
 
 @app.route('/index_files/<path:filename>')
 def send_index_files(filename):

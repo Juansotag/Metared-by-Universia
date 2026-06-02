@@ -101,15 +101,22 @@ responde con un bloque <query> que contenga código pandas válido. Ejemplos:
 
 <query>df_enc['score_gobernanza'].mean()</query>
 <query>df_enc[df_enc['country_code']=='CO'][['name','seal','score_gobernanza']].to_string()</query>
-<query>df_enc.groupby('country_code')['seal'].value_counts().to_string()</query>
-<query>df_bbpp[df_bbpp['tematicas'].apply(lambda x: 'Ambiental' in x)]['ies'].tolist()</query>
+<query>df_enc.groupby('country_code')[['students','score_gobernanza']].median().to_string()</query>
+<query>df_bbpp[df_bbpp['tematicas'].apply(lambda x: isinstance(x, list) and 'Ambiental' in x)]['titulo_es'].tolist()</query>
+<query>df_bbpp[df_bbpp['resumen_es'].str.contains('agua', case=False, na=False)][['ies','pais','titulo_es','recurso_tipo','recurso_url','url_origen']].to_string()</query>
+
+NOTAS CRITICAS sobre los datos:
+- La columna tematicas en df_bbpp contiene listas Python (ej: ['Ambiental', 'Social']). Para filtrar usa .apply(lambda x: isinstance(x, list) and 'Ambiental' in x). NUNCA uses .str.contains() en esa columna.
+- Para buscar prácticas sobre un tema, SIEMPRE combina titulo_es y resumen_es con OR e incluye recurso_url. Ejemplo: df_bbpp[df_bbpp['titulo_es'].str.contains('termino', case=False, na=False) | df_bbpp['resumen_es'].str.contains('termino', case=False, na=False)][['ies','pais','titulo_es','resumen_es','recurso_tipo','recurso_url','url_origen']].to_string()
+- Cuando muestres prácticas de df_bbpp, SIEMPRE incluye el enlace al recurso: usa el campo recurso_url como enlace principal [Ver recurso](recurso_url). Si recurso_url está vacío o es NaN, usa url_origen como fallback [Ver fuente](url_origen). Incluye el campo recurso_tipo para saber si es PDF, video, etc.
+- Si la búsqueda principal no da resultados, amplía con sinónimos o términos relacionados antes de concluir que no hay datos.
+- Si una query falla con ERROR, analiza el error, corrige el código y responde con un nuevo bloque <query> corregido. Nunca le pidas al usuario que ejecute código manualmente.
 
 REGLAS para usar <query>:
 - Solo uno por respuesta.
-- Código de una sola línea (o varias separadas por punto y coma ;).
-- No uses imports, open, os, sys ni ninguna función del sistema.
-- Si el resultado es suficiente para responder, redacta la respuesta final después de ver el resultado.
-- Si la pregunta NO requiere datos específicos (e.g., preguntas sobre la herramienta, cómo navegar, qué es MetaRed), responde directamente SIN usar <query>.
+- Código de una sola línea (o varias separadas por ;).
+- No uses imports, open, os, sys.
+- Si la pregunta NO requiere datos (preguntas sobre la herramienta, navegación, MetaRed), responde directamente SIN <query>.
 `;
         }
 
@@ -128,13 +135,13 @@ Apoyar la toma de decisiones en política universitaria de sostenibilidad, facil
 
 ## Sellos de sostenibilidad
 Las IES reciben un sello según su puntuación compuesta:
-- 🌱 **Compromiso** (nivel 1)
-- 🌿 **Liderazgo** (nivel 2)
-- 🌳 **Transformación** (nivel 3)
-- ⬜ **Sin Sello**
+- **Compromiso** (nivel 1)
+- **Liderazgo** (nivel 2)
+- **Transformación** (nivel 3)
+- **Sin Sello**
 ${schemaBlock}
 ## Instrucciones de comportamiento
-1. Responde **siempre en el mismo idioma** en que el usuario te pregunte.
+1. Responde SIEMPRE en el idioma en que el usuario te escribe. Si el usuario escribe en inglés, responde en inglés. Si escribe en portugués, responde en portugués. Si escribe en español, responde en español. El idioma configurado en la interfaz (${(window.i18n ? window.i18n.getLang() : 'es').toUpperCase()}) es solo una referencia, no una restricción.
 2. Sé conciso: la interfaz es un chat pequeño; usa viñetas y **negrita** con moderación.
 3. Cuando uses datos reales del resultado de una query, cítalos con precisión (no inventes cifras).
 4. Si no puedes responder algo con los datos disponibles, dilo claramente.
@@ -150,11 +157,16 @@ ${schemaBlock}
         if (!isTTSActive) window.speechSynthesis && window.speechSynthesis.cancel();
     });
 
+    function getLangBcp47() {
+        const l = window.i18n ? window.i18n.getLang() : 'es';
+        return l === 'pt' ? 'pt-BR' : l === 'en' ? 'en-US' : 'es-ES';
+    }
+
     function speakText(text) {
         if (!isTTSActive || !window.speechSynthesis) return;
         const clean = text.replace(/<[^>]*>/g, '').replace(/(\*\*|\*|#|`|<[^>]+>)/g, '');
         const utt   = new SpeechSynthesisUtterance(clean);
-        utt.lang    = 'es-ES';
+        utt.lang    = getLangBcp47();
         window.speechSynthesis.speak(utt);
     }
 
@@ -167,8 +179,19 @@ ${schemaBlock}
         recognition.continuous     = false;
         recognition.interimResults = false;
 
-        recognition.onstart  = () => { isRecording = true;  micBtn.classList.add("recording");    inputArea.placeholder = "Escuchando..."; };
-        recognition.onend    = () => { isRecording = false; micBtn.classList.remove("recording"); inputArea.placeholder = "Pregunta algo sobre los datos..."; };
+        recognition.onstart  = () => {
+            isRecording = true;
+            micBtn.classList.add('recording');
+            recognition.lang = getLangBcp47();
+            const t = window.i18n ? window.i18n.t('ai.listening') : 'Escuchando...';
+            inputArea.placeholder = t;
+        };
+        recognition.onend    = () => {
+            isRecording = false;
+            micBtn.classList.remove('recording');
+            const t = window.i18n ? window.i18n.t('ai.placeholder') : 'Pregunta algo sobre los datos...';
+            inputArea.placeholder = t;
+        };
         recognition.onerror  = (e) => { console.error("STT error:", e.error); recognition.onend(); };
         recognition.onresult = (e) => {
             const t = e.results[0][0].transcript;
@@ -196,6 +219,12 @@ ${schemaBlock}
         while (i < lines.length) {
             const line = lines[i];
             const trimmed = line.trim();
+
+            // Horizontal rule (---)
+            if (/^-{3,}$/.test(trimmed) || /^\*{3,}$/.test(trimmed)) {
+                output.push('<hr style="border:none;border-top:1px solid var(--color-border);margin:10px 0">');
+                i++; continue;
+            }
 
             // Headings
             if (/^### /.test(trimmed)) {
@@ -251,6 +280,7 @@ ${schemaBlock}
 
     function inlineFormat(text) {
         return text
+            .replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener" style="color:var(--color-primary);text-decoration:underline">$1</a>')
             .replace(/`([^`]+)`/g,         '<code>$1</code>')
             .replace(/\*\*([^*]+)\*\*/g,    '<strong>$1</strong>')
             .replace(/\*([^*]+)\*/g,        '<em>$1</em>')
@@ -323,7 +353,7 @@ ${schemaBlock}
         throw new Error("Proveedor no reconocido");
     }
 
-    // ── Main send handler — agentic loop ──────────────────────────────────────
+    // ── Main send handler — multi-turn agentic loop ──────────────────────────
     async function handleSend() {
         const text = inputArea.value.trim();
         if (!text || !apiKey) {
@@ -336,43 +366,66 @@ ${schemaBlock}
         showTyping();
 
         const systemPrompt = buildSystemPrompt();
-        chatHistory.push({ role: "user", content: text });
+        // Working copy of history for this turn (not yet committed to chatHistory)
+        const workingHistory = [...chatHistory, { role: "user", content: text }];
 
         try {
-            // Turn 1: call LLM
-            let reply = await callLLM(systemPrompt, [...chatHistory]);
+            let finalReply = null;
+            const MAX_ITERATIONS = 4;
 
-            // Detect <query> tag
-            const queryMatch = reply.match(/<query>([\s\S]*?)<\/query>/i);
+            for (let iter = 0; iter < MAX_ITERATIONS; iter++) {
+                const reply = await callLLM(systemPrompt, workingHistory);
+                const queryMatch = reply.match(/<query>([\/\s\S]*?)<\/query>/i);
 
-            if (queryMatch) {
+                if (!queryMatch) {
+                    // No query tag — this is the final answer
+                    finalReply = reply;
+                    break;
+                }
+
+                // Execute the query
                 const code   = queryMatch[1].trim();
                 const result = await executeQuery(code);
+                const isError = result.startsWith('ERROR:');
 
-                // Inject result back and ask LLM to finalize
-                chatHistory.push({ role: "assistant", content: reply });
-                chatHistory.push({
-                    role: "user",
-                    content: `Resultado de la consulta pandas:\n\`\`\`\n${result}\n\`\`\`\nUsa este resultado para responder la pregunta original de forma clara y precisa.`
-                });
+                // Push LLM's query turn into working history
+                workingHistory.push({ role: "assistant", content: reply });
 
-                // Turn 2: final answer
-                reply = await callLLM(systemPrompt, [...chatHistory]);
-                chatHistory.push({ role: "assistant", content: reply });
+                if (isError) {
+                    // Tell the LLM the error so it can correct and retry
+                    workingHistory.push({
+                        role: "user",
+                        content: `La consulta falló con el siguiente error:\n\`\`\`\n${result}\n\`\`\`\nCorrige el código y envía un nuevo bloque <query> con el código corregido. No le pidas al usuario que ejecute nada.`
+                    });
+                } else {
+                    // Successful result — ask for final answer
+                    workingHistory.push({
+                        role: "user",
+                        content: `Resultado de la consulta pandas:\n\`\`\`\n${result}\n\`\`\`\nUsa este resultado para responder la pregunta original de forma clara y precisa. No incluyas bloques <query> en tu respuesta final.`
+                    });
+                }
 
-                // Remove the injected helper message from history (keep it clean)
-                chatHistory.splice(-3, 2);
-            } else {
-                chatHistory.push({ role: "assistant", content: reply });
+                // If this was the last allowed iteration, force a final answer
+                if (iter === MAX_ITERATIONS - 2) {
+                    workingHistory.push({ role: "user", content: "Por favor da una respuesta final ahora basándote en los datos obtenidos hasta el momento." });
+                }
             }
 
+            if (!finalReply) {
+                finalReply = "No pude completar la consulta tras varios intentos. Por favor reformula tu pregunta.";
+            }
+
+            // Commit to real chatHistory: user message + final answer only
+            chatHistory.push({ role: "user", content: text });
+            chatHistory.push({ role: "assistant", content: finalReply });
+
             removeTyping();
-            appendMessage("bot", reply);
-            speakText(reply);
+            appendMessage("bot", finalReply);
+            speakText(finalReply);
 
         } catch (err) {
             removeTyping();
-            appendMessage("bot", `⚠️ Error al conectar con la API (**${provider}**). Verifica tu API Key. Detalle: ${err.message}`);
+            appendMessage("bot", `Error al conectar con la API (**${provider}**). Verifica tu API Key. Detalle: ${err.message}`);
         }
     }
 

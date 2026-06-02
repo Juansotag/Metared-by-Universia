@@ -6,11 +6,57 @@ document.addEventListener("DOMContentLoaded", function () {
     let activeFilters = { country: "ALL", ownership: "ALL", character: "ALL", seal: "ALL", size: "ALL" };
     let activeCharts = {};
 
-    // Country map codes to full names (Spanish)
-    const countryCodesMap = {
-        'ES': 'España', 'BR': 'Brasil', 'MX': 'México', 'CL': 'Chile',
-        'CO': 'Colombia', 'AR': 'Argentina', 'PE': 'Perú', 'EC': 'Ecuador'
+    // i18n helper: delegate to window.i18n if available, fallback to Spanish key
+    function _t(key) {
+        return (window.i18n && window.i18n.t(key)) || key;
+    }
+
+    // Translate a question by its data ID; fall back to Spanish full_text
+    function _tq(qId, fallback) {
+        const key = 'q.' + qId;
+        const translated = window.i18n && window.i18n.t(key);
+        // If translation exists and is not the raw key, use it
+        return (translated && translated !== key) ? translated : fallback;
+    }
+
+    // Translate raw data values to current UI language
+    // Maps field values stored in the JSON data to their i18n key
+    const DATA_VALUE_KEYS = {
+        // ownership
+        'Pública':        'filter.ownership_public',
+        'Privada':        'filter.ownership_private',
+        'Mixta':          'filter.ownership_mixed',
+        // character
+        'Generalista':    'filter.character_general',
+        'Especializada':  'filter.character_specialized',
+        'Otra':           'filter.character_other',
+        // seal
+        'Compromiso':     'filter.seal_commitment',
+        'Liderazgo':      'filter.seal_leadership',
+        'Transformación': 'filter.seal_transformation',
+        'Sin Sello':      'filter.seal_none',
+        // modality
+        'Presencial':     'value.modality_inperson',
+        'Híbrida':        'value.modality_hybrid',
+        'Virtual':        'value.modality_virtual',
+        // generic
+        'No responde':    'value.no_response',
+        'Desconocido':    'value.unknown'
     };
+    function translateVal(v) {
+        return DATA_VALUE_KEYS[v] ? _t(DATA_VALUE_KEYS[v]) : v;
+    }
+
+    // Country map: codes to TRANSLATED full names (rebuilt on langchange)
+    function getCountryCodesMap() {
+        return {
+            'ES': _t('country.ES'), 'BR': _t('country.BR'),
+            'MX': _t('country.MX'), 'CL': _t('country.CL'),
+            'CO': _t('country.CO'), 'AR': _t('country.AR'),
+            'PE': _t('country.PE'), 'EC': _t('country.EC')
+        };
+    }
+    let countryCodesMap = getCountryCodesMap();
     const countryNamesMap = Object.fromEntries(Object.entries(countryCodesMap).map(([k, v]) => [v, k]));
 
     // Reusable percentage formatter for Pie/Doughnut tooltips
@@ -73,7 +119,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 marker.bindPopup(`
                     <div style="font-size:13px; font-weight:700; margin-bottom:4px;">${u.name || u.ies || 'IES'}</div>
                     <div style="font-size:11px; color:#555;">${countryCodesMap[u.country_code] || u.country_code}</div>
-                    ${u.seal && u.seal !== 'Sin Sello' ? `<div style="font-size:11px; margin-top:4px; font-weight:600; color:#f5b14b;">Sello: ${u.seal}</div>` : ''}
+                    ${u.seal && u.seal !== 'Sin Sello' ? `<div style="font-size:11px; margin-top:4px; font-weight:600; color:#f5b14b;">${_t('map.seal')}: ${translateVal(u.seal)}</div>` : ''}
                 `);
                 window.surveyMarkersGroup.addLayer(marker);
             }
@@ -119,9 +165,20 @@ document.addEventListener("DOMContentLoaded", function () {
     }).catch(err => {
         console.error("Error loading data:", err);
         document.getElementById("loading-overlay").innerHTML = `
-            <div style="color: #e42424; font-size: 24px; font-weight:700;">Error al cargar datos</div>
-            <p style="color: #666;">Por favor, asegúrate de que el servidor Flask esté corriendo y los datos de Excel estén procesados.</p>
+            <div style="color: #e42424; font-size: 24px; font-weight:700;">${_t('error.load_title')}</div>
+            <p style="color: #666;">${_t('error.load_body')}</p>
         `;
+    });
+
+    // Re-render everything when the language changes
+    document.addEventListener('langchange', () => {
+        countryCodesMap = getCountryCodesMap();
+        if (surveyData) {
+            window.updateDashboardData(
+                activeFilters.country, activeFilters.ownership,
+                activeFilters.character, activeFilters.seal, activeFilters.size
+            );
+        }
     });
 
     // Populate country lists
@@ -331,15 +388,16 @@ document.addEventListener("DOMContentLoaded", function () {
         // Build group helper
         function getGroupVal(u) {
             let groupVal = u[groupByKey];
-            if (groupByKey === 'country_code') groupVal = countryCodesMap[u.country_code] || u.country_code;
-            else if (groupByKey === 'size') {
+            if (groupByKey === 'country_code') {
+                return countryCodesMap[u.country_code] || u.country_code;
+            } else if (groupByKey === 'size') {
                 const s = u.students;
-                if (s === null || s === undefined) groupVal = 'Desconocido';
-                else if (s <= 5000) groupVal = 'Peque\u00f1a (\u2264 5k)';
-                else if (s <= 20000) groupVal = 'Mediana (5k - 20k)';
-                else groupVal = 'Grande (> 20k)';
+                if (s === null || s === undefined) return _t('value.unknown');
+                if (s <= 5000) return _t('filter.size_small');
+                if (s <= 20000) return _t('filter.size_medium');
+                return _t('filter.size_large');
             }
-            return groupVal || 'No responde';
+            return translateVal(groupVal) || _t('value.no_response');
         }
 
         const groups = new Set(validUnis.map(u => getGroupVal(u)));
@@ -518,7 +576,7 @@ document.addEventListener("DOMContentLoaded", function () {
             data: {
                 labels: sortedCountries.map(c => countryCodesMap[c] || c),
                 datasets: [{
-                    label: 'Nº de IES',
+                    label: _t('chart.ies_count'),
                     data: countryAbsCounts,
                     backgroundColor: sortedCountries.map((_, i) =>
                         ['#e42424','#68b631','#4092df','#f5b14b','#8a3ffc','#009688','#ff5722','#795548'][i % 8]
@@ -536,7 +594,7 @@ document.addEventListener("DOMContentLoaded", function () {
                             label: function(context) {
                                 const abs = context.raw;
                                 const pct = ((abs / totalUnis) * 100).toFixed(1);
-                                return `${abs} IES (${pct}% del total filtrado)`;
+                                return `${abs} IES (${pct}%)`;
                             }
                         }
                     }
@@ -550,7 +608,7 @@ document.addEventListener("DOMContentLoaded", function () {
                         },
                         title: {
                             display: true,
-                            text: 'Número de IES',
+                            text: _t('chart.ies_count'),
                             font: { size: 11 }
                         }
                     },
@@ -559,10 +617,11 @@ document.addEventListener("DOMContentLoaded", function () {
             }
         });
 
-        // Tipology Donut
+        // Tipology Donut — translate raw ownership values
         const tipologyCounts = {};
         unis.forEach(u => {
-            const val = u.ownership;
+            const raw = u.ownership || '';
+            const val = raw ? (translateVal(raw) || raw) : _t('value.no_response');
             tipologyCounts[val] = (tipologyCounts[val] || 0) + 1;
         });
         safeRenderChart("chart-muestra-tipologia", {
@@ -584,10 +643,11 @@ document.addEventListener("DOMContentLoaded", function () {
             }
         });
 
-        // Caracter Donut
+        // Caracter Donut — translate raw character values
         const caracterCounts = {};
         unis.forEach(u => {
-            const val = u.character;
+            const raw = u.character || '';
+            const val = raw ? (translateVal(raw) || raw) : _t('value.no_response');
             caracterCounts[val] = (caracterCounts[val] || 0) + 1;
         });
         safeRenderChart("chart-muestra-caracter", {
@@ -662,9 +722,9 @@ document.addEventListener("DOMContentLoaded", function () {
             data: {
                 labels: sortedCountries.map(c => countryCodesMap[c] || c),
                 datasets: [
-                    { label: 'Presencial', data: presencialesData, backgroundColor: '#e42424' },
-                    { label: 'Híbrida', data: hibridasData, backgroundColor: '#4092df' },
-                    { label: 'Virtual', data: virtualesData, backgroundColor: '#68b631' }
+                    { label: _t('value.modality_inperson'), data: presencialesData, backgroundColor: '#e42424' },
+                    { label: _t('value.modality_hybrid'), data: hibridasData, backgroundColor: '#4092df' },
+                    { label: _t('value.modality_virtual'), data: virtualesData, backgroundColor: '#68b631' }
                 ]
             },
             options: {
@@ -735,37 +795,37 @@ document.addEventListener("DOMContentLoaded", function () {
                 <div class="kpi-card">
                     <div class="kpi-content">
                         <span class="kpi-value">${currentStats.samples > 0 ? currentStats.mean.toLocaleString(undefined, {maximumFractionDigits: 1}) + suffix : '-'}</span>
-                        <span class="kpi-label">Media</span>
+                        <span class="kpi-label">${_t('kpi.mean')}</span>
                     </div>
                 </div>
                 <div class="kpi-card">
                     <div class="kpi-content">
                         <span class="kpi-value">${currentStats.samples > 0 ? currentStats.min.toLocaleString(undefined, {maximumFractionDigits: 1}) + suffix : '-'}</span>
-                        <span class="kpi-label">Mínimo</span>
+                        <span class="kpi-label">${_t('kpi.min')}</span>
                     </div>
                 </div>
                 <div class="kpi-card">
                     <div class="kpi-content">
                         <span class="kpi-value">${currentStats.samples > 0 ? currentStats.max.toLocaleString(undefined, {maximumFractionDigits: 1}) + suffix : '-'}</span>
-                        <span class="kpi-label">Máximo</span>
+                        <span class="kpi-label">${_t('kpi.max')}</span>
                     </div>
                 </div>
                 <div class="kpi-card">
                     <div class="kpi-content">
                         <span class="kpi-value">${currentStats.samples > 0 ? (ind === 'residuos' ? currentStats.mean.toLocaleString(undefined, {maximumFractionDigits: 1}) + suffix : currentStats.total.toLocaleString(undefined, {maximumFractionDigits: 0}) + suffix) : '-'}</span>
-                        <span class="kpi-label">${ind === 'residuos' ? 'Promedio Global' : 'Total'}</span>
+                        <span class="kpi-label">${ind === 'residuos' ? _t('kpi.global_avg') : _t('kpi.total')}</span>
                     </div>
                 </div>
                 <div class="kpi-card">
                     <div class="kpi-content">
                         <span class="kpi-value">${currentStats.samples > 0 ? currentStats.median.toLocaleString(undefined, {maximumFractionDigits: 1}) + suffix : '-'}</span>
-                        <span class="kpi-label">Mediana</span>
+                        <span class="kpi-label">${_t('kpi.median')}</span>
                     </div>
                 </div>
                 <div class="kpi-card">
                     <div class="kpi-content">
                         <span class="kpi-value">${currentStats.samples}</span>
-                        <span class="kpi-label">Muestras</span>
+                        <span class="kpi-label">${_t('kpi.samples')}</span>
                     </div>
                 </div>
             `;
@@ -858,7 +918,7 @@ document.addEventListener("DOMContentLoaded", function () {
             data: {
                 labels: countriesList.map(c => countryCodesMap[c] || c),
                 datasets: [{
-                    label: 'Puntuación Media',
+                    label: _t('chart.mean_score'),
                     data: countriesList.map(c => parseFloat(countryScores[c].toFixed(2))),
                     backgroundColor: countriesList.map((_, i) => countryColorsAmb[i % countryColorsAmb.length]),
                     borderRadius: 4
@@ -869,12 +929,12 @@ document.addEventListener("DOMContentLoaded", function () {
                 maintainAspectRatio: false,
                 plugins: {
                     legend: { display: false },
-                    tooltip: { callbacks: { label: ctx => `Puntuación: ${ctx.raw.toFixed(2)}` } }
+                    tooltip: { callbacks: { label: ctx => `${_t('chart.score')}: ${ctx.raw.toFixed(2)}` } }
                 },
                 scales: {
                     y: {
                         min: 1, max: 5,
-                        title: { display: true, text: 'Puntuación media (1–5)', font: { size: 10 } }
+                        title: { display: true, text: _t('chart.score_axis'), font: { size: 10 } }
                     },
                     x: { grid: { display: false } }
                 }
@@ -967,11 +1027,11 @@ document.addEventListener("DOMContentLoaded", function () {
                     plugins: { legend: { position: 'bottom' } }
                 }
             });
-            // Populate legend A1-A10 outside the chart
+            // Populate legend A1-A10 outside the chart, using translated text when available
             const legendAmbEl = document.getElementById('legend-ambiental-items');
             if (legendAmbEl) {
                 legendAmbEl.innerHTML = subQuestions.map((q, i) =>
-                    `<div><strong>A${i+1}</strong> &mdash; ${q.full_text}</div>`
+                    `<div><strong>A${i+1}</strong> &mdash; ${_tq(q.id, q.full_text)}</div>`
                 ).join('');
             }
         }
@@ -1020,7 +1080,7 @@ document.addEventListener("DOMContentLoaded", function () {
             data: {
                 labels: countriesList.map(c => countryCodesMap[c] || c),
                 datasets: [{
-                    label: 'Puntuación Media',
+                    label: _t('chart.mean_score'),
                     data: countriesList.map(c => parseFloat(countryScores[c].toFixed(2))),
                     backgroundColor: countriesList.map((_, i) => countryColorsSoc[i % countryColorsSoc.length]),
                     borderRadius: 4
@@ -1031,12 +1091,12 @@ document.addEventListener("DOMContentLoaded", function () {
                 maintainAspectRatio: false,
                 plugins: {
                     legend: { display: false },
-                    tooltip: { callbacks: { label: ctx => `Puntuación: ${ctx.raw.toFixed(2)}` } }
+                    tooltip: { callbacks: { label: ctx => `${_t('chart.score')}: ${ctx.raw.toFixed(2)}` } }
                 },
                 scales: {
                     y: {
                         min: 1, max: 5,
-                        title: { display: true, text: 'Puntuación media (1–5)', font: { size: 10 } }
+                        title: { display: true, text: _t('chart.score_axis'), font: { size: 10 } }
                     },
                     x: { grid: { display: false } }
                 }
@@ -1076,7 +1136,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 data: {
                     labels: radarLabels,
                     datasets: [{
-                        label: 'Promedio Filtro Activo',
+                        label: _t('chart.active_filter_avg'),
                         data: dynamicGlobalRadarData,
                         borderColor: '#4092df',
                         backgroundColor: 'rgba(64, 146, 223, 0.2)',
@@ -1129,11 +1189,11 @@ document.addEventListener("DOMContentLoaded", function () {
                 }
             });
 
-            // Populate legend S1-S18 outside the chart
+            // Populate legend S1-S18 outside the chart, using translated text when available
             const legendSocEl = document.getElementById('legend-social-items');
             if (legendSocEl) {
                 legendSocEl.innerHTML = subQuestions.map((q, i) =>
-                    `<div><strong>S${i+1}</strong> &mdash; ${q.full_text}</div>`
+                    `<div><strong>S${i+1}</strong> &mdash; ${_tq(q.id, q.full_text)}</div>`
                 ).join('');
             }
         }
@@ -1184,7 +1244,7 @@ document.addEventListener("DOMContentLoaded", function () {
             data: {
                 labels: countriesList.map(c => countryCodesMap[c] || c),
                 datasets: [{
-                    label: 'Porcentaje Dispuesto',
+                    label: _t('chart.pct_activities'),
                     data: gobData,
                     backgroundColor: countriesList.map((_, i) => countryColorsGob[i % countryColorsGob.length]),
                     borderRadius: 4
@@ -1195,13 +1255,13 @@ document.addEventListener("DOMContentLoaded", function () {
                 maintainAspectRatio: false,
                 plugins: {
                     legend: { display: false },
-                    tooltip: { callbacks: { label: ctx => `${ctx.raw.toFixed(1)}% de actividades dispuestas` } }
+                    tooltip: { callbacks: { label: ctx => `${ctx.raw.toFixed(1)}% ${_t('chart.pct_activities')}` } }
                 },
                 scales: {
                     y: {
                         min: 0, max: 100,
                         ticks: { callback: v => v + '%' },
-                        title: { display: true, text: '% de actividades dispuestas', font: { size: 10 } }
+                        title: { display: true, text: _t('chart.pct_activities'), font: { size: 10 } }
                     },
                     x: { grid: { display: false } }
                 }
@@ -1261,7 +1321,7 @@ document.addEventListener("DOMContentLoaded", function () {
             });
 
             card.innerHTML = `
-                <div class="question-text">${idx+1}. ${q.full_text}</div>
+                <div class="question-text">${idx+1}. ${_tq(q.id, q.full_text)}</div>
                 <div class="question-chart-row">
                     <div class="question-donut-wrapper" style="position:relative; height:100px;">
                         <canvas id="${qCanvasId}" style="height:100px; width:100px;"></canvas>
@@ -1306,9 +1366,21 @@ document.addEventListener("DOMContentLoaded", function () {
 
     // --- 7. SELLOS PAGE ---
     function updateSellosPage(unis) {
-        // Seals distribution
-        const sealCounts = { 'Compromiso': 0, 'Liderazgo': 0, 'Transformación': 0, 'Sin Sello': 0 };
-        unis.forEach(u => sealCounts[u.seal] = (sealCounts[u.seal] || 0) + 1);
+        // Build translated seal counts
+        const SEAL_TYPES_ES  = ['Compromiso', 'Liderazgo', 'Transformación', 'Sin Sello'];
+        const SEAL_KEYS      = ['filter.seal_commitment', 'filter.seal_leadership', 'filter.seal_transformation', 'filter.seal_none'];
+        const SEAL_COLORS    = ['#3c5ecc', '#f5b14b', '#68b631', '#999'];
+
+        // Map ES label → translated label
+        const sealLabelMap = {};
+        SEAL_TYPES_ES.forEach((s, i) => { sealLabelMap[s] = _t(SEAL_KEYS[i]); });
+
+        const sealCounts = {};
+        SEAL_TYPES_ES.forEach((s, i) => { sealCounts[sealLabelMap[s]] = 0; });
+        unis.forEach(u => {
+            const label = sealLabelMap[u.seal] || u.seal || _t('value.no_response');
+            sealCounts[label] = (sealCounts[label] || 0) + 1;
+        });
 
         safeRenderChart("chart-sellos-global", {
             type: 'pie',
@@ -1316,7 +1388,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 labels: Object.keys(sealCounts),
                 datasets: [{
                     data: Object.values(sealCounts),
-                    backgroundColor: ['#3c5ecc', '#f5b14b', '#68b631', '#999']
+                    backgroundColor: SEAL_COLORS
                 }]
             },
             options: {
@@ -1329,20 +1401,17 @@ document.addEventListener("DOMContentLoaded", function () {
             }
         });
 
-        // Error 6: Distribución por país al 100% (barras apiladas normalizadas)
+        // By country stacked bar — labels are translated
         const countriesList = Object.keys(surveyData.by_country).sort();
-        const sealTypes = ['Compromiso', 'Liderazgo', 'Transformación', 'Sin Sello'];
-        const sealColors = { 'Compromiso': '#3c5ecc', 'Liderazgo': '#f5b14b', 'Transformación': '#68b631', 'Sin Sello': '#aaa' };
-
-        const sealDatasets = sealTypes.map(seal => ({
-            label: seal,
+        const sealDatasets = SEAL_TYPES_ES.map((sealES, i) => ({
+            label: sealLabelMap[sealES],
             data: countriesList.map(c => {
                 const countryUnis = unis.filter(u => u.country_code === c);
                 const total = countryUnis.length || 1;
-                const count = countryUnis.filter(u => u.seal === seal).length;
+                const count = countryUnis.filter(u => u.seal === sealES).length;
                 return parseFloat(((count / total) * 100).toFixed(1));
             }),
-            backgroundColor: sealColors[seal]
+            backgroundColor: SEAL_COLORS[i]
         }));
 
         safeRenderChart("chart-sellos-paises", {
@@ -1359,10 +1428,7 @@ document.addEventListener("DOMContentLoaded", function () {
                     tooltip: {
                         callbacks: {
                             label: ctx => {
-                                const c = countriesList[ctx.dataIndex];
-                                const countryUnis = unis.filter(u => u.country_code === c);
-                                const count = countryUnis.filter(u => u.seal === ctx.dataset.label).length;
-                                return `${ctx.dataset.label}: ${ctx.raw}% (${count} IES)`;
+                                return `${ctx.dataset.label}: ${ctx.raw}%`;
                             }
                         }
                     }
@@ -1374,7 +1440,7 @@ document.addEventListener("DOMContentLoaded", function () {
                         min: 0,
                         max: 100,
                         ticks: { callback: v => v + '%' },
-                        title: { display: true, text: '% de IES por sello', font: { size: 10 } }
+                        title: { display: true, text: _t('seals.pct_by_seal'), font: { size: 10 } }
                     }
                 }
             }
@@ -1408,28 +1474,41 @@ document.addEventListener("DOMContentLoaded", function () {
             const card = document.createElement("div");
             card.className = "bbpp-card";
 
-            const summary = p.es_destacado && p.texto_destacado_es ? p.texto_destacado_es : p.resumen_es.substring(0, 160) + "...";
+            // Use current language field if available
+            const lang = window.i18n ? window.i18n.getLang() : 'es';
+            const title   = p[`titulo_${lang}`]   || p.titulo_es   || p.titulo_en || '';
+            const summary_field = p.es_destacado && p[`texto_destacado_${lang}`]
+                                  ? p[`texto_destacado_${lang}`]
+                                  : (p[`resumen_${lang}`] || p.resumen_es || '');
+            const summary = summary_field.substring(0, 160) + (summary_field.length > 160 ? '...' : '');
             
-            // Build tags list
+            // Build tags list — translate each theme label
             let tagsHTML = "";
             p.tematicas.forEach(t => {
-                tagsHTML += `<span class="bbpp-tag ${t.toLowerCase()}">${t}</span>`;
+                const THEME_KEY_MAP = {
+                    'Ambiental': 'bbpp.theme_env',
+                    'Social': 'bbpp.theme_soc',
+                    'Gobernanza': 'bbpp.theme_gov',
+                    'Académica': 'bbpp.theme_acad'
+                };
+                const tLabel = THEME_KEY_MAP[t] ? _t(THEME_KEY_MAP[t]) : t;
+                tagsHTML += `<span class="bbpp-tag ${t.toLowerCase()}">${tLabel}</span>`;
             });
 
             card.innerHTML = `
-                <img class="bbpp-card-img" src="${p.imagen_fallback}" alt="${p.titulo_es}">
+                <img class="bbpp-card-img" src="${p.imagen_fallback}" alt="${title}">
                 <div class="bbpp-card-content">
                     <div style="display:flex; justify-content:space-between; align-items:center;">
                         <span class="bbpp-country-badge">${countryCodesMap[p.pais] || p.pais}</span>
-                        ${p.es_destacado ? '<span class="bbpp-featured-badge">Destacado</span>' : ''}
+                        ${p.es_destacado ? `<span class="bbpp-featured-badge">${_t('bbpp.featured')}</span>` : ''}
                     </div>
-                    <div class="bbpp-card-title">${p.titulo_es}</div>
+                    <div class="bbpp-card-title">${title}</div>
                     <div class="bbpp-card-ies">${p.ies}</div>
                     <p class="bbpp-card-summary">${summary}</p>
                     <div class="bbpp-tags">${tagsHTML}</div>
                     <div class="bbpp-card-links">
-                        <a href="${p.url_origen}" class="bbpp-link" target="_blank">Ver origen</a>
-                        ${p.recurso_url ? `<a href="${p.recurso_url}" class="bbpp-link" target="_blank">Ver recurso</a>` : ''}
+                        <a href="${p.url_origen}" class="bbpp-link" target="_blank">${_t('bbpp.see_origin')}</a>
+                        ${p.recurso_url ? `<a href="${p.recurso_url}" class="bbpp-link" target="_blank">${_t('bbpp.see_resource')}</a>` : ''}
                     </div>
                 </div>
             `;
@@ -1442,6 +1521,10 @@ document.addEventListener("DOMContentLoaded", function () {
             
             filteredPractices.forEach(p => {
                 if (p.lat && p.lon) {
+                    // Resolve language-aware title inside this scope
+                    const mlang = window.i18n ? window.i18n.getLang() : 'es';
+                    const markerTitle = p[`titulo_${mlang}`] || p.titulo_es || p.titulo_en || '';
+
                     const offsetLat = p.lat + (Math.random() - 0.5) * 0.15;
                     const offsetLon = p.lon + (Math.random() - 0.5) * 0.15;
 
@@ -1456,10 +1539,10 @@ document.addEventListener("DOMContentLoaded", function () {
 
                     marker.bindPopup(`
                         <div style="font-family:'HKGrotesk-Bold',sans-serif; font-size:13px; font-weight:700; margin-bottom:5px;">
-                            ${p.titulo_es}
+                            ${markerTitle}
                         </div>
                         <div style="font-size:11px; color:#555; margin-bottom:5px;">${p.ies} (${countryCodesMap[p.pais] || p.pais})</div>
-                        <a href="${p.url_origen}" target="_blank" style="color:#e42424; font-size:12px; font-weight:600;">Ver enlace origen</a>
+                        <a href="${p.url_origen}" target="_blank" style="color:#e42424; font-size:12px; font-weight:600;">${_t('bbpp.see_origin')}</a>
                     `);
                     window.bbppMarkersGroup.addLayer(marker);
                 }
