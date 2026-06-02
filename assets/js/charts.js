@@ -212,7 +212,7 @@ document.addEventListener("DOMContentLoaded", function () {
         return { total, mean, median, min, max, samples: vals.length };
     }
 
-    // Density chart: each group is a smooth line, Y = % within that group per bin
+    // Dynamic histogram drawing helper
     function renderHistogram(canvasId, unis, key, groupByKey) {
         const validUnis = unis.filter(u => u[key] !== null && u[key] !== undefined);
         
@@ -226,7 +226,7 @@ document.addEventListener("DOMContentLoaded", function () {
         
         if (validUnis.length === 0) {
             activeCharts[canvasId] = new Chart(ctx, {
-                type: 'line',
+                type: 'bar',
                 data: { labels: [], datasets: [] },
                 options: {
                     responsive: true,
@@ -244,7 +244,7 @@ document.addEventListener("DOMContentLoaded", function () {
         const min = vals[0];
         const max = vals[vals.length - 1];
         
-        const numBins = 8;
+        const numBins = 6;
         let binSize = (max - min) / numBins;
         if (binSize === 0) binSize = 1;
         
@@ -290,77 +290,80 @@ document.addEventListener("DOMContentLoaded", function () {
             groups.add(groupVal || 'No responde');
         });
         const groupsList = Array.from(groups).sort();
-
-        const palette = {
-            'country_code': ['#e42424','#68b631','#4092df','#f5b14b','#8a3ffc','#009688','#ff5722','#795548'],
-            'ownership':    ['#e42424','#4092df','#f5b14b','#aaa'],
-            'character':    ['#68b631','#f5b14b','#aaa'],
-            'seal':         ['#3c5ecc','#f5b14b','#68b631','#aaa'],
-            'size':         ['#8a3ffc','#4092df','#68b631','#aaa']
-        }[groupByKey] || ['#e42424','#68b631','#4092df','#f5b14b'];
-
-        // Helper: hex color to rgba string
-        const toRgba = (hex, a) => {
-            const n = parseInt(hex.replace('#',''), 16);
-            return `rgba(${(n>>16)&255},${(n>>8)&255},${n&255},${a})`;
+        
+        const datasets = [];
+        const stackColors = {
+            'country_code': ['#e42424', '#68b631', '#4092df', '#f5b14b', '#8a3ffc', '#009688', '#ff5722', '#795548'],
+            'ownership': ['#e42424', '#4092df', '#f5b14b', '#999'],
+            'character': ['#68b631', '#f5b14b', '#999'],
+            'seal': ['#3c5ecc', '#f5b14b', '#68b631', '#999'],
+            'size': ['#8a3ffc', '#4092df', '#68b631', '#999']
         };
-
-        // helper to get group value for a university
-        const getGV = (u) => {
-            let gv = u[groupByKey];
-            if (groupByKey === 'country_code') gv = countryCodesMap[u.country_code] || u.country_code;
-            else if (groupByKey === 'size') {
-                const s = u.students;
-                if (s == null) gv = 'Desconocido';
-                else if (s <= 5000) gv = 'Pequeña (≤ 5k)';
-                else if (s <= 20000) gv = 'Mediana (5k-20k)';
-                else gv = 'Grande (> 20k)';
-            }
-            return gv || 'No responde';
-        };
-
-        const datasets = groupsList.map((groupName, gIdx) => {
-            // denominator = total IES IN THIS GROUP
-            const groupTotal = validUnis.filter(u => getGV(u) === groupName).length;
-
-            // Y = % of this group's IES that fall in each bin
-            const data = bins.map(bin => {
-                const count = bin.unis.filter(u => getGV(u) === groupName).length;
-                return groupTotal > 0 ? parseFloat(((count / groupTotal) * 100).toFixed(1)) : 0;
+        const palette = stackColors[groupByKey] || ['#e42424', '#68b631', '#4092df', '#f5b14b'];
+        
+        // Convert counts to percentages within each bin
+        const binTotals = bins.map(bin => bin.unis.length || 1);
+        
+        groupsList.forEach((groupName, gIdx) => {
+            const data = bins.map((bin, binIdx) => {
+                const count = bin.unis.filter(u => {
+                    let uGroupVal = u[groupByKey];
+                    if (groupByKey === 'country_code') {
+                        uGroupVal = countryCodesMap[u.country_code] || u.country_code;
+                    } else if (groupByKey === 'size') {
+                        const students = u.students;
+                        if (students === null || students === undefined) uGroupVal = 'Desconocido';
+                        else if (students <= 5000) uGroupVal = 'Pequeña (≤ 5k)';
+                        else if (students <= 20000) uGroupVal = 'Mediana (5k - 20k)';
+                        else uGroupVal = 'Grande (> 20k)';
+                    }
+                    return (uGroupVal || 'No responde') === groupName;
+                }).length;
+                // Express as % of ALL IES in that bin
+                return binTotals[binIdx] > 0 ? parseFloat(((count / validUnis.length) * 100).toFixed(1)) : 0;
             });
-
-            const color = palette[gIdx % palette.length];
-            return {
+            
+            datasets.push({
                 label: groupName,
-                data,
-                borderColor: color,
-                backgroundColor: toRgba(color, 0.12),
-                fill: true,
-                tension: 0.35,
-                borderWidth: 2,
-                pointRadius: 3,
-                pointHoverRadius: 5
-            };
+                data: data,
+                backgroundColor: palette[gIdx % palette.length],
+                borderWidth: 0
+            });
         });
-
+        
         activeCharts[canvasId] = new Chart(ctx, {
-            type: 'line',
-            data: { labels: bins.map(b => b.label), datasets },
+            type: 'bar',
+            data: {
+                labels: bins.map(b => b.label),
+                datasets: datasets
+            },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                interaction: { mode: 'index', intersect: false },
                 scales: {
-                    x: { grid: { display: false }, ticks: { font: { size: 9 }, maxRotation: 35 } },
+                    x: { stacked: true, grid: { display: false } },
                     y: {
+                        stacked: true,
                         beginAtZero: true,
                         ticks: { callback: v => v + '%' },
-                        title: { display: true, text: '% dentro de su grupo', font: { size: 10 } }
+                        title: { display: true, text: '% del total filtrado', font: { size: 10 } }
                     }
                 },
                 plugins: {
-                    legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } },
-                    tooltip: { callbacks: { label: c => `${c.dataset.label}: ${c.raw}% de su grupo` } }
+                    legend: {
+                        position: 'bottom',
+                        labels: { boxWidth: 10, font: { size: 10 } }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                let label = context.dataset.label || '';
+                                if (label) label += ': ';
+                                label += context.raw + '%';
+                                return label;
+                            }
+                        }
+                    }
                 }
             }
         });
