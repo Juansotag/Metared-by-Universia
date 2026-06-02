@@ -212,155 +212,184 @@ document.addEventListener("DOMContentLoaded", function () {
         return { total, mean, median, min, max, samples: vals.length };
     }
 
-    // Dynamic histogram drawing helper
-    function renderHistogram(canvasId, unis, key, groupByKey) {
-        const validUnis = unis.filter(u => u[key] !== null && u[key] !== undefined);
-        
-        if (activeCharts[canvasId]) {
-            activeCharts[canvasId].destroy();
+    // Quantile helper
+    function quantile(sortedArr, q) {
+        const pos = (sortedArr.length - 1) * q;
+        const base = Math.floor(pos);
+        const rest = pos - base;
+        if (sortedArr[base + 1] !== undefined) {
+            return sortedArr[base] + rest * (sortedArr[base + 1] - sortedArr[base]);
         }
-        
+        return sortedArr[base];
+    }
+
+    // Dynamic histogram drawing helper (quantile bins + normalized chart)
+    function renderHistogram(canvasId, unis, key, groupByKey) {
+        const normCanvasId = canvasId + '-norm';
+        const validUnis = unis.filter(u => u[key] !== null && u[key] !== undefined);
+
+        // Destroy existing charts
+        [canvasId, normCanvasId].forEach(id => {
+            if (activeCharts[id]) { activeCharts[id].destroy(); delete activeCharts[id]; }
+        });
+
         const canvas = document.getElementById(canvasId);
         if (!canvas) return;
-        const ctx = canvas.getContext('2d');
-        
+
         if (validUnis.length === 0) {
-            activeCharts[canvasId] = new Chart(ctx, {
+            activeCharts[canvasId] = new Chart(canvas.getContext('2d'), {
                 type: 'bar',
                 data: { labels: [], datasets: [] },
                 options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: { display: false },
-                        title: { display: true, text: 'Sin datos de distribución válidos', font: { size: 13, weight: 'bold' } }
-                    }
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { display: false },
+                        title: { display: true, text: 'Sin datos válidos', font: { size: 13 } } }
                 }
             });
             return;
         }
-        
+
         const vals = validUnis.map(u => u[key]).sort((a, b) => a - b);
-        const min = vals[0];
-        const max = vals[vals.length - 1];
-        
-        const numBins = 18;
-        let binSize = (max - min) / numBins;
-        if (binSize === 0) binSize = 1;
-        
+        const p1  = quantile(vals, 0.01);
+        const p95 = quantile(vals, 0.95);
+
+        // 17 equal-width bins between p1 and p95 + 1 outlier bin
+        const numNormalBins = 17;
+        const binSize = (p95 - p1) / numNormalBins || 1;
+
         const bins = [];
-        for (let i = 0; i < numBins; i++) {
-            const bMin = min + i * binSize;
-            const bMax = min + (i + 1) * binSize;
-            bins.push({
-                min: bMin,
-                max: bMax,
-                label: formatBinLabel(bMin, bMax, key),
-                unis: []
-            });
+        for (let i = 0; i < numNormalBins; i++) {
+            const bMin = p1 + i * binSize;
+            const bMax = p1 + (i + 1) * binSize;
+            bins.push({ min: bMin, max: bMax, label: formatBinLabel(bMin, bMax, key), unis: [] });
         }
-        
+        // Outlier bin
+        bins.push({ min: p95, max: Infinity, label: '> ' + formatNumberShort(p95) + (key === 'energia' ? ' kWh' : key === 'carbono' ? ' t' : key === 'residuos' ? '%' : ' m³'), unis: [] });
+
         validUnis.forEach(u => {
             const val = u[key];
-            let assigned = false;
-            for (let i = 0; i < numBins; i++) {
-                if (val >= bins[i].min && val <= bins[i].max) {
-                    bins[i].unis.push(u);
-                    assigned = true;
-                    break;
+            if (val > p95) {
+                bins[bins.length - 1].unis.push(u);
+            } else {
+                let assigned = false;
+                for (let i = 0; i < numNormalBins; i++) {
+                    if (val >= bins[i].min && val <= bins[i].max) {
+                        bins[i].unis.push(u);
+                        assigned = true;
+                        break;
+                    }
                 }
-            }
-            if (!assigned) {
-                bins[numBins - 1].unis.push(u);
+                if (!assigned) bins[numNormalBins - 1].unis.push(u);
             }
         });
-        
-        const groups = new Set();
-        validUnis.forEach(u => {
+
+        // Build group helper
+        function getGroupVal(u) {
             let groupVal = u[groupByKey];
-            if (groupByKey === 'country_code') {
-                groupVal = countryCodesMap[u.country_code] || u.country_code;
-            } else if (groupByKey === 'size') {
-                const students = u.students;
-                if (students === null || students === undefined) groupVal = 'Desconocido';
-                else if (students <= 5000) groupVal = 'Pequeña (≤ 5k)';
-                else if (students <= 20000) groupVal = 'Mediana (5k - 20k)';
+            if (groupByKey === 'country_code') groupVal = countryCodesMap[u.country_code] || u.country_code;
+            else if (groupByKey === 'size') {
+                const s = u.students;
+                if (s === null || s === undefined) groupVal = 'Desconocido';
+                else if (s <= 5000) groupVal = 'Peque\u00f1a (\u2264 5k)';
+                else if (s <= 20000) groupVal = 'Mediana (5k - 20k)';
                 else groupVal = 'Grande (> 20k)';
             }
-            groups.add(groupVal || 'No responde');
-        });
+            return groupVal || 'No responde';
+        }
+
+        const groups = new Set(validUnis.map(u => getGroupVal(u)));
         const groupsList = Array.from(groups).sort();
-        
-        const datasets = [];
+
         const stackColors = {
-            'country_code': ['#e42424', '#68b631', '#4092df', '#f5b14b', '#8a3ffc', '#009688', '#ff5722', '#795548'],
-            'ownership': ['#e42424', '#4092df', '#f5b14b', '#999'],
-            'character': ['#68b631', '#f5b14b', '#999'],
-            'seal': ['#3c5ecc', '#f5b14b', '#68b631', '#999'],
-            'size': ['#8a3ffc', '#4092df', '#68b631', '#999']
+            'country_code': ['#e42424','#68b631','#4092df','#f5b14b','#8a3ffc','#009688','#ff5722','#795548'],
+            'ownership':    ['#e42424','#4092df','#f5b14b','#999'],
+            'character':    ['#68b631','#f5b14b','#999'],
+            'seal':         ['#3c5ecc','#f5b14b','#68b631','#999'],
+            'size':         ['#8a3ffc','#4092df','#68b631','#999']
         };
-        const palette = stackColors[groupByKey] || ['#e42424', '#68b631', '#4092df', '#f5b14b'];
-        
-        // Convert counts to percentages within each bin
-        const binTotals = bins.map(bin => bin.unis.length || 1);
-        
-        groupsList.forEach((groupName, gIdx) => {
-            const data = bins.map((bin, binIdx) => {
-                const count = bin.unis.filter(u => {
-                    let uGroupVal = u[groupByKey];
-                    if (groupByKey === 'country_code') {
-                        uGroupVal = countryCodesMap[u.country_code] || u.country_code;
-                    } else if (groupByKey === 'size') {
-                        const students = u.students;
-                        if (students === null || students === undefined) uGroupVal = 'Desconocido';
-                        else if (students <= 5000) uGroupVal = 'Pequeña (≤ 5k)';
-                        else if (students <= 20000) uGroupVal = 'Mediana (5k - 20k)';
-                        else uGroupVal = 'Grande (> 20k)';
-                    }
-                    return (uGroupVal || 'No responde') === groupName;
-                }).length;
-                // Express as % of ALL IES in that bin
-                return binTotals[binIdx] > 0 ? parseFloat(((count / validUnis.length) * 100).toFixed(1)) : 0;
-            });
-            
-            datasets.push({
-                label: groupName,
-                data: data,
-                backgroundColor: palette[gIdx % palette.length],
-                borderWidth: 0
-            });
-        });
-        
-        activeCharts[canvasId] = new Chart(ctx, {
+        const palette = stackColors[groupByKey] || ['#e42424','#68b631','#4092df','#f5b14b'];
+
+        const binLabels = bins.map(b => b.label);
+        const totalN = validUnis.length || 1;
+
+        // --- Dataset for main chart (% of total) ---
+        const datasetsMain = groupsList.map((groupName, gIdx) => ({
+            label: groupName,
+            data: bins.map(bin => {
+                const count = bin.unis.filter(u => getGroupVal(u) === groupName).length;
+                return parseFloat(((count / totalN) * 100).toFixed(1));
+            }),
+            backgroundColor: palette[gIdx % palette.length],
+            borderWidth: 0
+        }));
+
+        const sharedOptions = {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } }
+            }
+        };
+
+        // Main chart
+        activeCharts[canvasId] = new Chart(canvas.getContext('2d'), {
             type: 'bar',
-            data: {
-                labels: bins.map(b => b.label),
-                datasets: datasets
-            },
+            data: { labels: binLabels, datasets: datasetsMain },
             options: {
-                responsive: true,
-                maintainAspectRatio: false,
+                ...sharedOptions,
                 scales: {
-                    x: { stacked: true, grid: { display: false } },
+                    x: { stacked: true, grid: { display: false }, ticks: { font: { size: 9 } } },
                     y: {
-                        stacked: true,
-                        beginAtZero: true,
+                        stacked: true, beginAtZero: true,
                         ticks: { callback: v => v + '%' },
-                        title: { display: true, text: '% del total filtrado', font: { size: 10 } }
+                        title: { display: true, text: '% del total', font: { size: 10 } }
                     }
                 },
                 plugins: {
-                    legend: {
-                        position: 'bottom',
-                        labels: { boxWidth: 10, font: { size: 10 } }
-                    },
+                    ...sharedOptions.plugins,
+                    tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: ${ctx.raw}%` } }
+                }
+            }
+        });
+
+        // --- Dataset for normalized 100% chart ---
+        const normCanvas = document.getElementById(normCanvasId);
+        if (!normCanvas) return;
+
+        const datasetsNorm = groupsList.map((groupName, gIdx) => ({
+            label: groupName,
+            data: bins.map(bin => {
+                const binTotal = bin.unis.length || 0;
+                if (binTotal === 0) return 0;
+                const count = bin.unis.filter(u => getGroupVal(u) === groupName).length;
+                return parseFloat(((count / binTotal) * 100).toFixed(1));
+            }),
+            backgroundColor: palette[gIdx % palette.length],
+            borderWidth: 0
+        }));
+
+        activeCharts[normCanvasId] = new Chart(normCanvas.getContext('2d'), {
+            type: 'bar',
+            data: { labels: binLabels, datasets: datasetsNorm },
+            options: {
+                ...sharedOptions,
+                scales: {
+                    x: { stacked: true, grid: { display: false }, ticks: { font: { size: 9 } } },
+                    y: {
+                        stacked: true, beginAtZero: true, max: 100,
+                        ticks: { callback: v => v + '%' },
+                        title: { display: true, text: 'Composici\u00f3n (100%)', font: { size: 10 } }
+                    }
+                },
+                plugins: {
+                    ...sharedOptions.plugins,
                     tooltip: {
                         callbacks: {
-                            label: function(context) {
-                                let label = context.dataset.label || '';
-                                if (label) label += ': ';
-                                label += context.raw + '%';
-                                return label;
+                            label: ctx => {
+                                const bin = bins[ctx.dataIndex];
+                                const binTotal = bin.unis.length;
+                                const count = bin.unis.filter(u => getGroupVal(u) === ctx.dataset.label).length;
+                                return `${ctx.dataset.label}: ${ctx.raw}% (${count} de ${binTotal} IES)`;
                             }
                         }
                     }
@@ -368,21 +397,18 @@ document.addEventListener("DOMContentLoaded", function () {
             }
         });
     }
-    
+
     function formatBinLabel(bMin, bMax, key) {
-        const suffix = key === 'energia' ? ' kWh' : key === 'carbono' ? ' t' : key === 'residuos' ? '%' : ' m³';
+        const suffix = key === 'energia' ? ' kWh' : key === 'carbono' ? ' t' : key === 'residuos' ? '%' : ' m\u00b3';
         return formatNumberShort(bMin) + ' - ' + formatNumberShort(bMax) + suffix;
     }
-    
+
     function formatNumberShort(num) {
-        if (num >= 1e6) {
-            return (num / 1e6).toFixed(1) + 'M';
-        } else if (num >= 1e3) {
-            return (num / 1e3).toFixed(1) + 'k';
-        } else {
-            return Math.round(num).toString();
-        }
+        if (num >= 1e6) return (num / 1e6).toFixed(1) + 'M';
+        if (num >= 1e3) return (num / 1e3).toFixed(1) + 'k';
+        return Math.round(num).toString();
     }
+
 
     // --- 1. HOME GAUGES ---
     function updateHomeGauges(unis) {
