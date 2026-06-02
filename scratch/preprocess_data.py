@@ -345,12 +345,17 @@ for idx, row in df_prac.iterrows():
     
     ies_clean = clean_name(row['IES'])
     pais_code = str(row['País']).strip().upper()
-    
-    # Resolve coordinate
-    if ies_clean in enc_coord_map:
+
+    # Resolve coordinate: use the Excel's own Latitud/Longitud columns first (user-provided)
+    bbpp_lat = row.get('Latitud')
+    bbpp_lon = row.get('Longitud')
+    if pd.notna(bbpp_lat) and pd.notna(bbpp_lon):
+        lat, lon = float(bbpp_lat), float(bbpp_lon)
+    elif ies_clean in enc_coord_map:
         lat, lon = enc_coord_map[ies_clean]
     else:
         lat, lon = country_defaults.get(pais_code, default_centroids.get(pais_code, (0.0, 0.0)))
+
         
     card = {
         'id': str(row['ID']),

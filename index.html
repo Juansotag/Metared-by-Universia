@@ -51,49 +51,60 @@
                 </header>
 
                 <!-- Filtros Globales (Dropdowns) sticky con Sello Concedido -->
-                <div id="global-filters-container" class="filters-bar">
-                    <div class="filter-group">
-                        <label for="filter-country">País</label>
-                        <select id="filter-country" class="filter-select">
-                            <option value="ALL">Todos los países (Global)</option>
-                        </select>
+                <div id="global-filters-container" class="filters-bar" style="flex-wrap: wrap; gap: 0;">
+                    <!-- Fila superior: título + botón toggle -->
+                    <div style="display:flex; align-items:center; width:100%; padding-bottom: 0; gap: 10px;">
+                        <span style="font-size:12px; font-weight:700; color:#666; text-transform:uppercase; letter-spacing:0.5px;">Filtros Globales</span>
+                        <button id="filters-toggle-btn" title="Mostrar / ocultar filtros" aria-expanded="true" aria-controls="filters-collapsible-body">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+                            <span id="filters-toggle-label">Ocultar</span>
+                        </button>
                     </div>
-                    <div class="filter-group">
-                        <label for="filter-ownership">Titularidad</label>
-                        <select id="filter-ownership" class="filter-select">
-                            <option value="ALL">Todas las titularidades</option>
-                            <option value="Pública">Pública</option>
-                            <option value="Privada">Privada</option>
-                            <option value="Mixta">Mixta</option>
-                        </select>
-                    </div>
-                    <div class="filter-group">
-                        <label for="filter-character">Carácter</label>
-                        <select id="filter-character" class="filter-select">
-                            <option value="ALL">Todos los caracteres</option>
-                            <option value="Generalista">Generalista</option>
-                            <option value="Especializada">Especializada</option>
-                            <option value="Otra">Otra</option>
-                        </select>
-                    </div>
-                    <div class="filter-group">
-                        <label for="filter-size">Tamaño (Estudiantes)</label>
-                        <select id="filter-size" class="filter-select">
-                            <option value="ALL">Todos los tamaños</option>
-                            <option value="Pequeña">Pequeña (≤ 5,000)</option>
-                            <option value="Mediana">Mediana (5,001 - 20,000)</option>
-                            <option value="Grande">Grande (> 20,000)</option>
-                        </select>
-                    </div>
-                    <div class="filter-group">
-                        <label for="filter-seal">Sello Concedido</label>
-                        <select id="filter-seal" class="filter-select">
-                            <option value="ALL">Todos los sellos</option>
-                            <option value="Compromiso">Compromiso</option>
-                            <option value="Liderazgo">Liderazgo</option>
-                            <option value="Transformación">Transformación</option>
-                            <option value="Sin Sello">Sin Sello</option>
-                        </select>
+                    <!-- Cuerpo colapsable con los dropdowns -->
+                    <div id="filters-collapsible-body" style="padding-top: 12px;">
+                        <div class="filter-group">
+                            <label for="filter-country">País</label>
+                            <select id="filter-country" class="filter-select">
+                                <option value="ALL">Todos los países (Global)</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label for="filter-ownership">Titularidad</label>
+                            <select id="filter-ownership" class="filter-select">
+                                <option value="ALL">Todas las titularidades</option>
+                                <option value="Pública">Pública</option>
+                                <option value="Privada">Privada</option>
+                                <option value="Mixta">Mixta</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label for="filter-character">Carácter</label>
+                            <select id="filter-character" class="filter-select">
+                                <option value="ALL">Todos los caracteres</option>
+                                <option value="Generalista">Generalista</option>
+                                <option value="Especializada">Especializada</option>
+                                <option value="Otra">Otra</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label for="filter-size">Tamaño (Estudiantes)</label>
+                            <select id="filter-size" class="filter-select">
+                                <option value="ALL">Todos los tamaños</option>
+                                <option value="Pequeña">Pequeña (≤ 5,000)</option>
+                                <option value="Mediana">Mediana (5,001 - 20,000)</option>
+                                <option value="Grande">Grande (> 20,000)</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label for="filter-seal">Sello Concedido</label>
+                            <select id="filter-seal" class="filter-select">
+                                <option value="ALL">Todos los sellos</option>
+                                <option value="Compromiso">Compromiso</option>
+                                <option value="Liderazgo">Liderazgo</option>
+                                <option value="Transformación">Transformación</option>
+                                <option value="Sin Sello">Sin Sello</option>
+                            </select>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -692,7 +703,23 @@
         </div>
     </div>
 
-    <script src="/assets/js/filters.js?v=20260602d"></script>
-    <script src="/assets/js/charts.js?v=20260602d"></script>
+    <script>
+        // --- Filtros Toggle ---
+        (function() {
+            var btn = document.getElementById('filters-toggle-btn');
+            var body = document.getElementById('filters-collapsible-body');
+            var label = document.getElementById('filters-toggle-label');
+            if (!btn || !body) return;
+
+            btn.addEventListener('click', function() {
+                var isCollapsed = body.classList.toggle('collapsed');
+                btn.classList.toggle('collapsed', isCollapsed);
+                btn.setAttribute('aria-expanded', isCollapsed ? 'false' : 'true');
+                label.textContent = isCollapsed ? 'Mostrar filtros' : 'Ocultar';
+            });
+        })();
+    </script>
+    <script src="/assets/js/filters.js?v=20260602e"></script>
+    <script src="/assets/js/charts.js?v=20260602e"></script>
 </body>
 </html>
