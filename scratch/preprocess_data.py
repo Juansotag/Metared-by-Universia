@@ -95,7 +95,9 @@ basic_indicators = {
 }
 
 def get_clean_indicator_df(df, key, col):
-    # Error 4: All indicators count samples with value > 0
+    # Residuos must be a valid percentage: (0, 100] — values > 100 are survey errors (entered tonnes)
+    if key == 'residuos':
+        return df[(df[col] > 0) & (df[col] <= 100)]
     return df[df[col] > 0]
 
 def clean_ind_val(val, key):
@@ -105,8 +107,11 @@ def clean_ind_val(val, key):
         val = float(val)
     except (ValueError, TypeError):
         return None
-    # Error 3: Include small valid values. Only exclude zero (means not reported).
-    if val <= 0:
+    # Only exclude zero (means not reported).
+    # For residuos: also exclude values > 100 (survey error — entered tonnes instead of %)
+    if key == 'residuos' and (val <= 0 or val > 100):
+        return None
+    if key != 'residuos' and val <= 0:
         return None
     return val
 

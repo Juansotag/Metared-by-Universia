@@ -242,12 +242,12 @@
         },
         "residuos": {
             "global": {
-                "total": 328370.03,
-                "mean": 3219.3140196078434,
-                "median": 30.0,
+                "total": 3494.0299999999997,
+                "mean": 36.39614583333333,
+                "median": 24.0,
                 "min": 0.56,
-                "max": 187600.0,
-                "samples": 102
+                "max": 100.0,
+                "samples": 96
             },
             "countries": {
                 "AR": {
@@ -259,12 +259,12 @@
                     "samples": 6
                 },
                 "BR": {
-                    "total": 11066.0,
-                    "mean": 582.421052631579,
+                    "total": 566.0,
+                    "mean": 33.294117647058826,
                     "median": 30.0,
                     "min": 1.0,
-                    "max": 10000.0,
-                    "samples": 19
+                    "max": 95.0,
+                    "samples": 17
                 },
                 "CL": {
                     "total": 158.0,
@@ -275,12 +275,12 @@
                     "samples": 14
                 },
                 "CO": {
-                    "total": 188020.0,
-                    "mean": 14463.076923076924,
-                    "median": 30.0,
+                    "total": 420.0,
+                    "mean": 35.0,
+                    "median": 27.0,
                     "min": 5.0,
-                    "max": 187600.0,
-                    "samples": 13
+                    "max": 80.0,
+                    "samples": 12
                 },
                 "EC": {
                     "total": 124.0,
@@ -299,12 +299,12 @@
                     "samples": 22
                 },
                 "MX": {
-                    "total": 127195.33,
-                    "mean": 7949.708125,
-                    "median": 20.5,
+                    "total": 419.33000000000004,
+                    "mean": 32.25615384615385,
+                    "median": 17.0,
                     "min": 0.56,
-                    "max": 120000.0,
-                    "samples": 16
+                    "max": 100.0,
+                    "samples": 13
                 },
                 "PE": {
                     "total": 212.7,
@@ -2421,7 +2421,7 @@
             "seal": "Sin Sello",
             "energia": 3006862.0,
             "carbono": 679.0,
-            "residuos": 187600.0,
+            "residuos": null,
             "agua": 45451.0,
             "gob_1": 0,
             "gob_2": 1,
@@ -5877,7 +5877,7 @@
             "seal": "Sin Sello",
             "energia": 136450.0,
             "carbono": 70115.0,
-            "residuos": 366.0,
+            "residuos": null,
             "agua": 12500.0,
             "gob_1": 0,
             "gob_2": 1,
@@ -7317,7 +7317,7 @@
             "seal": "Liderazgo",
             "energia": 2421.0,
             "carbono": null,
-            "residuos": 6410.0,
+            "residuos": null,
             "agua": 2054.0,
             "gob_1": 0,
             "gob_2": 1,
@@ -8253,7 +8253,7 @@
             "seal": "Compromiso",
             "energia": 86640.0,
             "carbono": 0.5,
-            "residuos": 120000.0,
+            "residuos": null,
             "agua": 1680000.0,
             "gob_1": 1,
             "gob_2": 1,
@@ -9405,7 +9405,7 @@
             "seal": "Sin Sello",
             "energia": 863605.0,
             "carbono": null,
-            "residuos": 500.0,
+            "residuos": null,
             "agua": 10500.0,
             "gob_1": 1,
             "gob_2": 0,
@@ -11277,7 +11277,7 @@
             "seal": "Compromiso",
             "energia": 12103050.0,
             "carbono": 414.0,
-            "residuos": 10000.0,
+            "residuos": null,
             "agua": 394688.0,
             "gob_1": 1,
             "gob_2": 1,
