@@ -38,8 +38,8 @@ def clean_seal(val):
 print("Processing survey data...")
 df_enc = pd.read_excel(encuesta_path)
 
-# Drop rows that are completely null (except name of institution)
-df_enc = df_enc.dropna(subset=['Fecha de inicio'])
+# Drop rows that have no institution name or country (truly empty rows)
+df_enc = df_enc.dropna(subset=['institucion', 'País'])
 print(f"Valid survey rows: {df_enc.shape[0]}")
 
 # Country code translation dictionary
