@@ -138,7 +138,9 @@ ${schemaBlock}
 2. Sé conciso: la interfaz es un chat pequeño; usa viñetas y **negrita** con moderación.
 3. Cuando uses datos reales del resultado de una query, cítalos con precisión (no inventes cifras).
 4. Si no puedes responder algo con los datos disponibles, dilo claramente.
-5. Para preguntas de navegación o uso del dashboard, orienta al usuario hacia los filtros y pestañas de la interfaz.`;
+5. Para preguntas de navegación o uso del dashboard, orienta al usuario hacia los filtros y pestañas de la interfaz.
+6. **Nunca uses emojis** en tus respuestas.
+7. Usa formato Markdown para estructurar: encabezados (##, ###), negritas (**texto**), listas (- item), tablas (| col |). El cliente renderiza Markdown correctamente.`;
     }
 
     // ── TTS ───────────────────────────────────────────────────────────────────
@@ -184,15 +186,33 @@ ${schemaBlock}
     // ── Chat UI helpers ───────────────────────────────────────────────────────
     // ── Markdown → HTML ─────────────────────────────────────────────────────
     function markdownToHtml(text) {
+        // Strip emojis as a safety net (in case the LLM ignores the instruction)
+        text = text.replace(/[\u{1F000}-\u{1FFFF}\u{2600}-\u{27BF}\u{FE00}-\u{FEFF}]/gu, '');
+
         const lines = text.split('\n');
         const output = [];
         let i = 0;
 
         while (i < lines.length) {
             const line = lines[i];
+            const trimmed = line.trim();
 
-            // Detect markdown table block (lines starting with |)
-            if (line.trim().startsWith('|')) {
+            // Headings
+            if (/^### /.test(trimmed)) {
+                output.push(`<h4 style="margin:8px 0 4px;font-size:13px;font-weight:700;color:var(--color-title)">${inlineFormat(trimmed.slice(4))}</h4>`);
+                i++; continue;
+            }
+            if (/^## /.test(trimmed)) {
+                output.push(`<h3 style="margin:10px 0 5px;font-size:14px;font-weight:700;color:var(--color-title)">${inlineFormat(trimmed.slice(3))}</h3>`);
+                i++; continue;
+            }
+            if (/^# /.test(trimmed)) {
+                output.push(`<h2 style="margin:12px 0 6px;font-size:15px;font-weight:700;color:var(--color-title)">${inlineFormat(trimmed.slice(2))}</h2>`);
+                i++; continue;
+            }
+
+            // Markdown table block (lines starting with |)
+            if (trimmed.startsWith('|')) {
                 const tableLines = [];
                 while (i < lines.length && lines[i].trim().startsWith('|')) {
                     tableLines.push(lines[i].trim());
@@ -202,41 +222,39 @@ ${schemaBlock}
                 continue;
             }
 
-            // Unordered list item
-            if (/^[-*] /.test(line.trim())) {
-                output.push('<li>' + inlineFormat(line.trim().replace(/^[-*] /, '')) + '</li>');
-                i++;
-                continue;
+            // Unordered list item (- or *)
+            if (/^[-*] /.test(trimmed)) {
+                output.push('<li>' + inlineFormat(trimmed.replace(/^[-*] /, '')) + '</li>');
+                i++; continue;
             }
 
             // Ordered list item
-            if (/^\d+\.\s/.test(line.trim())) {
-                output.push('<li>' + inlineFormat(line.trim().replace(/^\d+\.\s/, '')) + '</li>');
-                i++;
-                continue;
+            if (/^\d+\.\s/.test(trimmed)) {
+                output.push('<li>' + inlineFormat(trimmed.replace(/^\d+\.\s/, '')) + '</li>');
+                i++; continue;
             }
 
-            // Empty line
-            if (line.trim() === '') {
-                output.push('<br>');
-                i++;
-                continue;
+            // Empty line → spacing
+            if (trimmed === '') {
+                output.push('<div style="height:6px"></div>');
+                i++; continue;
             }
 
             output.push('<span>' + inlineFormat(line) + '</span><br>');
             i++;
         }
 
-        // Wrap consecutive <li> items in <ul>
+        // Wrap consecutive <li> into <ul>
         return output.join('')
-            .replace(/(<li>.*?<\/li>(<br>)?)+/gs, match => '<ul>' + match.replace(/<br>/g, '') + '</ul>');
+            .replace(/(<li>.*?<\/li>)+/gs, match => '<ul>' + match + '</ul>');
     }
 
     function inlineFormat(text) {
         return text
-            .replace(/`([^`]+)`/g, '<code>$1</code>')
-            .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
-            .replace(/\*([^*]+)\*/g,     '<em>$1</em>');
+            .replace(/`([^`]+)`/g,         '<code>$1</code>')
+            .replace(/\*\*([^*]+)\*\*/g,    '<strong>$1</strong>')
+            .replace(/\*([^*]+)\*/g,        '<em>$1</em>')
+            .replace(/[\u{1F000}-\u{1FFFF}\u{2600}-\u{27BF}\u{FE00}-\u{FEFF}]/gu, '');
     }
 
     function parseMarkdownTable(lines) {
