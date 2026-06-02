@@ -244,7 +244,7 @@ document.addEventListener("DOMContentLoaded", function () {
         const min = vals[0];
         const max = vals[vals.length - 1];
         
-        const numBins = 6;
+        const numBins = 18;
         let binSize = (max - min) / numBins;
         if (binSize === 0) binSize = 1;
         
