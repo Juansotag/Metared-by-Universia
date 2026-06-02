@@ -33,16 +33,6 @@ document.addEventListener("DOMContentLoaded", function () {
         providerSelect.value = provider;
     }
 
-    providerSelect.addEventListener("change", (e) => {
-        if (e.target.value === "anthropic") {
-            corsWarning.style.display = "block";
-        } else {
-            corsWarning.style.display = "none";
-        }
-    });
-    // Trigger change to set initial warning state
-    providerSelect.dispatchEvent(new Event("change"));
-
     // --- UI Toggles ---
     fab.addEventListener("click", () => {
         chatWindow.classList.add("open");
@@ -173,12 +163,12 @@ document.addEventListener("DOMContentLoaded", function () {
         // Build a summary of the data to give context without blowing up the token limit
         let contextData = "No hay datos cargados aún.";
         
-        if (window.surveyData && window.practicesData) {
-            const totalIES = window.surveyData.length;
+        if (window.surveyData && window.surveyData.universities && window.practicesData) {
+            const totalIES = window.surveyData.universities.length;
             const totalPractices = window.practicesData.length;
             
             // Just a lightweight sample of the structure
-            const sampleIES = window.surveyData.slice(0, 3).map(u => `${u.name} (${u.country_code})`);
+            const sampleIES = window.surveyData.universities.slice(0, 3).map(u => `${u.name} (${u.country_code})`);
             
             contextData = `
 El dashboard "MetaRed ESG" muestra datos de sostenibilidad en Instituciones de Educación Superior (IES) iberoamericanas.
