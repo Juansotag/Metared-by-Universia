@@ -901,6 +901,7 @@ document.addEventListener("DOMContentLoaded", function () {
                     `<div><strong>A${i+1}</strong> &mdash; ${q.full_text}</div>`
                 ).join('');
             }
+        }
     }
 
     // --- 5. DIMENSIÓN SOCIAL ---
