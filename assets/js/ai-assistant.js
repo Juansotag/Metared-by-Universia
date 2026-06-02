@@ -207,8 +207,10 @@ Reglas:
                 reply = await callGeminiAPI(systemPrompt, userText);
             } else if (provider === "openai") {
                 reply = await callOpenAIAPI(systemPrompt, userText);
-            } else if (provider === "anthropic") {
-                reply = await callAnthropicAPI(systemPrompt, userText);
+            } else if (provider === "anthropic_haiku") {
+                reply = await callAnthropicAPI(systemPrompt, userText, "claude-haiku-4-5");
+            } else if (provider === "anthropic_sonnet") {
+                reply = await callAnthropicAPI(systemPrompt, userText, "claude-sonnet-4-5");
             }
 
             chatHistory.push({ role: "assistant", content: reply });
@@ -271,11 +273,19 @@ Reglas:
         return data.choices[0].message.content;
     }
 
-    async function callAnthropicAPI(systemPrompt, userText) {
+    async function callAnthropicAPI(systemPrompt, userText, model = "claude-haiku-4-5") {
         const url = "https://api.anthropic.com/v1/messages";
-        
-        // Format history (Anthropic requires strictly alternating user/assistant)
-        let formattedHistory = [...chatHistory];
+
+        // Build messages array: exclude the last item from chatHistory
+        // because we'll use userText directly as the final user turn.
+        // Anthropic requires strictly alternating user/assistant messages.
+        const historyForAPI = chatHistory.slice(0, -1); // exclude the message we just pushed
+        const formattedMessages = historyForAPI.map(msg => ({
+            role: msg.role === "assistant" ? "assistant" : "user",
+            content: msg.content
+        }));
+        // Add the current user message as the last entry
+        formattedMessages.push({ role: "user", content: userText });
         
         const response = await fetch(url, {
             method: "POST",
@@ -283,13 +293,13 @@ Reglas:
                 "Content-Type": "application/json",
                 "x-api-key": apiKey,
                 "anthropic-version": "2023-06-01",
-                "anthropic-dangerous-direct-browser-access": "true" // Required for browser calls
+                "anthropic-dangerous-direct-browser-access": "true"
             },
             body: JSON.stringify({
-                model: "claude-3-haiku-20240307",
+                model: model,
                 max_tokens: 1024,
                 system: systemPrompt,
-                messages: formattedHistory
+                messages: formattedMessages
             })
         });
 
